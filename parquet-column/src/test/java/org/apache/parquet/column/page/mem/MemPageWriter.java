@@ -1,4 +1,4 @@
-/* 
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -28,11 +28,8 @@ import java.util.List;
 import org.apache.parquet.Log;
 import org.apache.parquet.bytes.BytesInput;
 import org.apache.parquet.column.Encoding;
-import org.apache.parquet.column.page.DataPageV1;
-import org.apache.parquet.column.page.DataPageV2;
-import org.apache.parquet.column.page.DictionaryPage;
-import org.apache.parquet.column.page.DataPage;
-import org.apache.parquet.column.page.PageWriter;
+import org.apache.parquet.column.Index;
+import org.apache.parquet.column.page.*;
 import org.apache.parquet.column.statistics.Statistics;
 import org.apache.parquet.io.ParquetEncodingException;
 
@@ -41,6 +38,7 @@ public class MemPageWriter implements PageWriter {
 
   private final List<DataPage> pages = new ArrayList<DataPage>();
   private DictionaryPage dictionaryPage;
+  private IndexPage indexPage;
   private long memSize = 0;
   private long totalValueCount = 0;
 
@@ -102,6 +100,16 @@ public class MemPageWriter implements PageWriter {
     this.memSize += dictionaryPage.getBytes().size();
     this.dictionaryPage = dictionaryPage.copy();
     if (DEBUG) LOG.debug("dictionary page written for " + dictionaryPage.getBytes().size() + " bytes and " + dictionaryPage.getDictionarySize() + " records");
+  }
+
+  @Override
+  public void writeIndexPage(IndexPage indexPage) throws IOException {
+    if(this.indexPage != null){
+      throw new ParquetEncodingException(("Only one dictionary page per block"));
+    }
+    this.memSize += indexPage.getBytes().size();
+    this.indexPage = indexPage.copy();
+    if (DEBUG) LOG.debug("index page written for " + indexPage.getBytes().size() + " bytes and " + indexPage.getIndexSize() + " recores");
   }
 
   @Override

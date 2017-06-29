@@ -1,4 +1,4 @@
-/* 
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -45,7 +45,9 @@ public class ParquetProperties {
 
   public static final int DEFAULT_PAGE_SIZE = 1024 * 1024;
   public static final int DEFAULT_DICTIONARY_PAGE_SIZE = DEFAULT_PAGE_SIZE;
+  public static final int DEFAULT_INDEX_PAGE_SIZE = DEFAULT_PAGE_SIZE;
   public static final boolean DEFAULT_IS_DICTIONARY_ENABLED = true;
+  public static final boolean DEFAULT_IS_INDEX_ENABLED = false;
   public static final WriterVersion DEFAULT_WRITER_VERSION = WriterVersion.PARQUET_1_0;
   public static final boolean DEFAULT_ESTIMATE_ROW_COUNT_FOR_PAGE_SIZE_CHECK = true;
   public static final int DEFAULT_MINIMUM_RECORD_COUNT_FOR_CHECK = 100;
@@ -79,23 +81,27 @@ public class ParquetProperties {
   private final int initialSlabSize;
   private final int pageSizeThreshold;
   private final int dictionaryPageSizeThreshold;
+  private final int indexPageSizeThreshold;
   private final WriterVersion writerVersion;
   private final boolean enableDictionary;
+  private final boolean enableIndex;
   private final int minRowCountForPageSizeCheck;
   private final int maxRowCountForPageSizeCheck;
   private final boolean estimateNextSizeCheck;
   private final ByteBufferAllocator allocator;
   private final ValuesWriterFactory valuesWriterFactory;
 
-  private ParquetProperties(WriterVersion writerVersion, int pageSize, int dictPageSize, boolean enableDict, int minRowCountForPageSizeCheck,
+  private ParquetProperties(WriterVersion writerVersion, int pageSize, int dictPageSize,int indexPageSize, boolean enableDict, boolean enableIndex, int minRowCountForPageSizeCheck,
                             int maxRowCountForPageSizeCheck, boolean estimateNextSizeCheck, ByteBufferAllocator allocator,
                             ValuesWriterFactory writerFactory) {
     this.pageSizeThreshold = pageSize;
     this.initialSlabSize = CapacityByteArrayOutputStream
       .initialSlabSizeHeuristic(MIN_SLAB_SIZE, pageSizeThreshold, 10);
     this.dictionaryPageSizeThreshold = dictPageSize;
+    this.indexPageSizeThreshold = indexPageSize;
     this.writerVersion = writerVersion;
     this.enableDictionary = enableDict;
+    this.enableIndex = enableIndex;
     this.minRowCountForPageSizeCheck = minRowCountForPageSizeCheck;
     this.maxRowCountForPageSizeCheck = maxRowCountForPageSizeCheck;
     this.estimateNextSizeCheck = estimateNextSizeCheck;
@@ -150,12 +156,20 @@ public class ParquetProperties {
     return dictionaryPageSizeThreshold;
   }
 
+  public int getIndexPageSizeThreshold(){
+    return indexPageSizeThreshold;
+  }
+
   public WriterVersion getWriterVersion() {
     return writerVersion;
   }
 
   public boolean isEnableDictionary() {
     return enableDictionary;
+  }
+
+  public boolean isEnableIndex(){
+    return enableIndex;
   }
 
   public ByteBufferAllocator getAllocator() {
@@ -201,7 +215,9 @@ public class ParquetProperties {
   public static class Builder {
     private int pageSize = DEFAULT_PAGE_SIZE;
     private int dictPageSize = DEFAULT_DICTIONARY_PAGE_SIZE;
+    private int indexPageSize = DEFAULT_INDEX_PAGE_SIZE;
     private boolean enableDict = DEFAULT_IS_DICTIONARY_ENABLED;
+    private boolean enableIndex = DEFAULT_IS_INDEX_ENABLED;
     private WriterVersion writerVersion = DEFAULT_WRITER_VERSION;
     private int minRowCountForPageSizeCheck = DEFAULT_MINIMUM_RECORD_COUNT_FOR_CHECK;
     private int maxRowCountForPageSizeCheck = DEFAULT_MAXIMUM_RECORD_COUNT_FOR_CHECK;
@@ -214,7 +230,9 @@ public class ParquetProperties {
 
     private Builder(ParquetProperties toCopy) {
       this.enableDict = toCopy.enableDictionary;
+      this.enableIndex = toCopy.enableIndex;
       this.dictPageSize = toCopy.dictionaryPageSizeThreshold;
+      this.indexPageSize = toCopy.getIndexPageSizeThreshold();
       this.writerVersion = toCopy.writerVersion;
       this.minRowCountForPageSizeCheck = toCopy.minRowCountForPageSizeCheck;
       this.maxRowCountForPageSizeCheck = toCopy.maxRowCountForPageSizeCheck;
@@ -243,6 +261,11 @@ public class ParquetProperties {
      */
     public Builder withDictionaryEncoding(boolean enableDictionary) {
       this.enableDict = enableDictionary;
+      return this;
+    }
+
+    public Builder withIndexEncoding(boolean enableIndex){
+      this.enableIndex = enableIndex;
       return this;
     }
 
@@ -304,8 +327,8 @@ public class ParquetProperties {
 
     public ParquetProperties build() {
       ParquetProperties properties =
-        new ParquetProperties(writerVersion, pageSize, dictPageSize,
-          enableDict, minRowCountForPageSizeCheck, maxRowCountForPageSizeCheck,
+        new ParquetProperties(writerVersion, pageSize, dictPageSize, indexPageSize,
+          enableDict,enableIndex, minRowCountForPageSizeCheck, maxRowCountForPageSizeCheck,
           estimateNextSizeCheck, allocator, valuesWriterFactory);
       // we pass a constructed but uninitialized factory to ParquetProperties above as currently
       // creation of ValuesWriters is invoked from within ParquetProperties. In the future

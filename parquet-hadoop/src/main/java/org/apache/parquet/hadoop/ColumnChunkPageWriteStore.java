@@ -36,6 +36,7 @@ import org.apache.parquet.bytes.ConcatenatingByteArrayCollector;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.Encoding;
 import org.apache.parquet.column.page.DictionaryPage;
+import org.apache.parquet.column.page.IndexPage;
 import org.apache.parquet.column.page.PageWriteStore;
 import org.apache.parquet.column.page.PageWriter;
 import org.apache.parquet.column.statistics.Statistics;
@@ -58,6 +59,7 @@ class ColumnChunkPageWriteStore implements PageWriteStore {
     private final ByteArrayOutputStream tempOutputStream = new ByteArrayOutputStream();
     private final ConcatenatingByteArrayCollector buf;
     private DictionaryPage dictionaryPage;
+    private IndexPage indexPage;
 
     private long uncompressedLength;
     private long compressedLength;
@@ -188,6 +190,9 @@ class ColumnChunkPageWriteStore implements PageWriteStore {
         writer.writeDictionaryPage(dictionaryPage);
         // tracking the dictionary encoding is handled in writeDictionaryPage
       }
+      if(indexPage != null) {
+        writer.writeIndexPage(indexPage);
+      }
       writer.writeDataPages(buf, uncompressedLength, compressedLength, totalStatistics,
           rlEncodings, dlEncodings, dataEncodings);
       writer.endColumn();
@@ -221,6 +226,17 @@ class ColumnChunkPageWriteStore implements PageWriteStore {
       int uncompressedSize = (int)dictionaryBytes.size();
       BytesInput compressedBytes = compressor.compress(dictionaryBytes);
       this.dictionaryPage = new DictionaryPage(BytesInput.copy(compressedBytes), uncompressedSize, dictionaryPage.getDictionarySize(), dictionaryPage.getEncoding());
+    }
+
+    @Override
+    public void writeIndexPage(IndexPage indexPage) throws IOException {
+      if(this.indexPage != null){
+        throw new ParquetEncodingException("Only one index page is allowed");
+      }
+      BytesInput indexBytes = indexPage.getBytes();
+      int uncompressedSize = (int)indexBytes.size();
+      BytesInput compressedBytes = compressor.compress(indexBytes);
+      this.indexPage = new IndexPage(BytesInput.copy(compressedBytes),indexPage.getIndexSize(),indexPage.getEncoding());
     }
 
     @Override

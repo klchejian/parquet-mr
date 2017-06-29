@@ -24,6 +24,7 @@ import org.apache.parquet.column.ParquetProperties;
 import org.apache.parquet.column.ParquetProperties.WriterVersion;
 import org.apache.parquet.column.values.ValuesWriter;
 import org.apache.parquet.column.values.dictionary.DictionaryValuesWriter;
+import org.apache.parquet.column.values.dictionary.IndexValuesWriter;
 import org.apache.parquet.column.values.fallback.FallbackValuesWriter;
 
 /**
@@ -75,11 +76,39 @@ public class DefaultValuesWriterFactory implements ValuesWriterFactory {
     }
   }
 
+  static IndexValuesWriter indexWriter(ColumnDescriptor path ,ParquetProperties properties, Encoding indexPageEncoding, Encoding dataPageEncoding) {
+    switch (path.getType()) {
+      case INT32:
+        return new IndexValuesWriter.TestIntegerIndexValuesWriter(properties.getIndexPageSizeThreshold(),dataPageEncoding,indexPageEncoding,properties.getAllocator());
+      case BOOLEAN:
+      case BINARY:
+      case INT64:
+      case INT96:
+      case DOUBLE:
+      case FLOAT:
+      case FIXED_LEN_BYTE_ARRAY:
+        throw new IllegalArgumentException("no dictionary encoding for " + path.getType());
+      default:
+        throw new IllegalArgumentException("Unknown type " + path.getType());
+    }
+  }
+
   static ValuesWriter dictWriterWithFallBack(ColumnDescriptor path, ParquetProperties parquetProperties, Encoding dictPageEncoding, Encoding dataPageEncoding, ValuesWriter writerToFallBackTo) {
     if (parquetProperties.isEnableDictionary()) {
       return FallbackValuesWriter.of(
         dictionaryWriter(path, parquetProperties, dictPageEncoding, dataPageEncoding),
         writerToFallBackTo);
+    } else {
+      return writerToFallBackTo;
+    }
+  }
+
+  static ValuesWriter indexWriter(ColumnDescriptor path, ParquetProperties parquetProperties, Encoding dictPageEncoding, Encoding dataPageEncoding, ValuesWriter writerToFallBackTo) {
+    if (parquetProperties.isEnableIndex()) {
+      return indexWriter(path, parquetProperties, dictPageEncoding, dataPageEncoding);
+//      return FallbackValuesWriter.of(
+//        indexWriter(path, parquetProperties, dictPageEncoding, dataPageEncoding),
+//        writerToFallBackTo);
     } else {
       return writerToFallBackTo;
     }

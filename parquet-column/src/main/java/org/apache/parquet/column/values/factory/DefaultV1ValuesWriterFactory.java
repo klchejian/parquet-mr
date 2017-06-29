@@ -22,10 +22,12 @@ import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.Encoding;
 import org.apache.parquet.column.ParquetProperties;
 import org.apache.parquet.column.values.ValuesWriter;
+import org.apache.parquet.column.values.fallback.FallbackValuesWriter;
 import org.apache.parquet.column.values.plain.BooleanPlainValuesWriter;
 import org.apache.parquet.column.values.plain.FixedLenByteArrayPlainValuesWriter;
 import org.apache.parquet.column.values.plain.PlainValuesWriter;
 
+import static org.apache.parquet.column.Encoding.INDEX;
 import static org.apache.parquet.column.Encoding.PLAIN_DICTIONARY;
 
 public class DefaultV1ValuesWriterFactory implements ValuesWriterFactory {
@@ -43,6 +45,10 @@ public class DefaultV1ValuesWriterFactory implements ValuesWriterFactory {
 
   private Encoding getEncodingForDictionaryPage() {
     return PLAIN_DICTIONARY;
+  }
+
+  private Encoding getEncodingForIndexPage(){
+    return INDEX;
   }
 
   @Override
@@ -66,6 +72,14 @@ public class DefaultV1ValuesWriterFactory implements ValuesWriterFactory {
         return getFloatValuesWriter(descriptor);
       default:
         throw new IllegalArgumentException("Unknown type " + descriptor.getType());
+    }
+  }
+
+  private ValuesWriter getValuesWriter(ColumnDescriptor path,ValuesWriter fallbackWriter){
+    if(parquetProperties.isEnableIndex()){
+      return DefaultValuesWriterFactory.indexWriter(path,parquetProperties,getEncodingForIndexPage(),getEncodingForDataPage(),fallbackWriter);
+    }else{
+      return DefaultValuesWriterFactory.dictWriterWithFallBack(path, parquetProperties, getEncodingForDictionaryPage(), getEncodingForDataPage(), fallbackWriter);
     }
   }
 

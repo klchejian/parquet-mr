@@ -1,4 +1,4 @@
-/* 
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -21,6 +21,7 @@ package org.apache.parquet.column.values;
 import org.apache.parquet.bytes.BytesInput;
 import org.apache.parquet.column.Encoding;
 import org.apache.parquet.column.page.DictionaryPage;
+import org.apache.parquet.column.page.IndexPage;
 import org.apache.parquet.io.api.Binary;
 
 /**
@@ -73,6 +74,10 @@ public abstract class ValuesWriter {
     return null;
   }
 
+  public IndexPage toIndexPageAndClose(){
+    return null;
+  }
+
   /**
    * reset the dictionary when a new block starts
    */
@@ -80,17 +85,17 @@ public abstract class ValuesWriter {
   }
 
   /**
-   * ( > {@link #getBufferedSize} )
-   * @return the allocated size of the buffer
-   */
-  abstract public long getAllocatedSize();
-
-  /**
    * @param value the value to encode
    */
   public void writeByte(int value) {
     throw new UnsupportedOperationException(getClass().getName());
   }
+
+  /**
+   * ( > {@link #getBufferedSize} )
+   * @return the allocated size of the buffer
+   */
+  abstract public long getAllocatedSize();
 
   /**
    * @param v the value to encode
