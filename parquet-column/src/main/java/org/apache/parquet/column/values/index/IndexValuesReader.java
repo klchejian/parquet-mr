@@ -16,17 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.parquet.column.values.dictionary;
+package org.apache.parquet.column.values.index;
 
 import org.apache.parquet.Log;
 import org.apache.parquet.bytes.ByteBufferInputStream;
 import org.apache.parquet.bytes.BytesUtils;
-import org.apache.parquet.column.Dictionary;
 import org.apache.parquet.column.Index;
 import org.apache.parquet.column.values.ValuesReader;
 import org.apache.parquet.column.values.rle.RunLengthBitPackingHybridDecoder;
 import org.apache.parquet.io.ParquetDecodingException;
-import org.apache.parquet.io.api.Binary;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;

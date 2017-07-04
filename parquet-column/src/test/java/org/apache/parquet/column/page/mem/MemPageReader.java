@@ -1,4 +1,4 @@
-/* 
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -26,6 +26,7 @@ import java.util.Iterator;
 import org.apache.parquet.Log;
 import org.apache.parquet.column.page.DictionaryPage;
 import org.apache.parquet.column.page.DataPage;
+import org.apache.parquet.column.page.IndexPage;
 import org.apache.parquet.column.page.PageReader;
 import org.apache.parquet.io.ParquetDecodingException;
 
@@ -36,13 +37,15 @@ public class MemPageReader implements PageReader {
   private final long totalValueCount;
   private final Iterator<DataPage> pages;
   private final DictionaryPage dictionaryPage;
+  private final IndexPage indexPage;
 
-  public MemPageReader(long totalValueCount, Iterator<DataPage> pages, DictionaryPage dictionaryPage) {
+  public MemPageReader(long totalValueCount, Iterator<DataPage> pages, DictionaryPage dictionaryPage, IndexPage indexPage) {
     super();
     checkNotNull(pages, "pages");
     this.totalValueCount = totalValueCount;
     this.pages = pages;
     this.dictionaryPage = dictionaryPage;
+    this.indexPage = indexPage;
   }
 
   @Override
@@ -66,4 +69,8 @@ public class MemPageReader implements PageReader {
     return dictionaryPage;
   }
 
+  @Override
+  public IndexPage readIndexPage() {
+    return indexPage;
+  }
 }

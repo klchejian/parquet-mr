@@ -24,7 +24,7 @@ import org.apache.parquet.column.ParquetProperties;
 import org.apache.parquet.column.ParquetProperties.WriterVersion;
 import org.apache.parquet.column.values.ValuesWriter;
 import org.apache.parquet.column.values.dictionary.DictionaryValuesWriter;
-import org.apache.parquet.column.values.dictionary.IndexValuesWriter;
+import org.apache.parquet.column.values.index.IndexValuesWriter;
 import org.apache.parquet.column.values.fallback.FallbackValuesWriter;
 
 /**

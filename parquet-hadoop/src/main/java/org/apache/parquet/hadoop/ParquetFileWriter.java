@@ -135,6 +135,7 @@ public class ParquetFileWriter {
   private long currentChunkValueCount;            // set in startColumn
   private long currentChunkFirstDataPage;         // set in startColumn (out.pos())
   private long currentChunkDictionaryPageOffset;  // set in writeDictionaryPage
+  private long currentChunkIndexPageOffset;       // set in writeIndexPage
 
   /**
    * Captures the order in which methods should be called
@@ -348,6 +349,22 @@ public class ParquetFileWriter {
   public void writeIndexPage(IndexPage indexPage) throws IOException {
     state = state.write();
     if (DEBUG) LOG.debug(out.getPos() + ": write index page: " + indexPage.getIndexSize() + " values");
+    currentChunkIndexPageOffset = out.getPos();
+    int uncompressedSize = indexPage.getUncompressedSize();
+    int compressedPageSize = (int) indexPage.getBytes().size();
+    metadataConverter.writeIndexPageHeader(
+      uncompressedSize,
+      compressedPageSize,
+      indexPage.getIndexSize(),
+      indexPage.getEncoding(),
+      out);
+    long headerSize = out.getPos() - currentChunkIndexPageOffset;
+    this.uncompressedLength += uncompressedSize + headerSize;
+    this.compressedLength += compressedPageSize + headerSize;
+    if (DEBUG) LOG.debug(out.getPos() + ": write index page content " + compressedPageSize);
+    indexPage.getBytes().writeAllTo(out);
+    encodingStatsBuilder.addIndexEncoding(indexPage.getEncoding());
+    currentEncodings.add(indexPage.getEncoding());
   }
 
   /**
@@ -475,6 +492,7 @@ public class ParquetFileWriter {
         currentStatistics,
         currentChunkFirstDataPage,
         currentChunkDictionaryPageOffset,
+        currentChunkIndexPageOffset,
         currentChunkValueCount,
         compressedLength,
         uncompressedLength));
@@ -582,6 +600,7 @@ public class ParquetFileWriter {
           chunk.getEncodingStats(),
           chunk.getEncodings(),
           chunk.getStatistics(),
+          newChunkStart,
           newChunkStart,
           newChunkStart,
           chunk.getValueCount(),

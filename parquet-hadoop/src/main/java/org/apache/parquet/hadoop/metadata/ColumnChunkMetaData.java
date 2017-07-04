@@ -1,4 +1,4 @@
-/* 
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -40,12 +40,13 @@ abstract public class ColumnChunkMetaData {
       Set<Encoding> encodings,
       long firstDataPage,
       long dictionaryPageOffset,
+      long indexPageOffset,
       long valueCount,
       long totalSize,
       long totalUncompressedSize) {
     return get(
         path, type, codec, null, encodings, new BooleanStatistics(), firstDataPage,
-        dictionaryPageOffset, valueCount, totalSize, totalUncompressedSize);
+        dictionaryPageOffset, indexPageOffset, valueCount, totalSize, totalUncompressedSize);
   }
 
   @Deprecated
@@ -57,12 +58,13 @@ abstract public class ColumnChunkMetaData {
       Statistics statistics,
       long firstDataPage,
       long dictionaryPageOffset,
+      long indexpageOffset,
       long valueCount,
       long totalSize,
       long totalUncompressedSize) {
     return get(
         path, type, codec, null, encodings, statistics, firstDataPage, dictionaryPageOffset,
-        valueCount, totalSize, totalUncompressedSize);
+        indexpageOffset, valueCount, totalSize, totalUncompressedSize);
   }
 
   public static ColumnChunkMetaData get(
@@ -74,6 +76,7 @@ abstract public class ColumnChunkMetaData {
       Statistics statistics,
       long firstDataPage,
       long dictionaryPageOffset,
+      long indexPageOffset,
       long valueCount,
       long totalSize,
       long totalUncompressedSize) {
@@ -89,6 +92,7 @@ abstract public class ColumnChunkMetaData {
           statistics,
           firstDataPage,
           dictionaryPageOffset,
+          indexPageOffset,
           valueCount,
           totalSize,
           totalUncompressedSize);
@@ -99,6 +103,7 @@ abstract public class ColumnChunkMetaData {
           statistics,
           firstDataPage,
           dictionaryPageOffset,
+          indexPageOffset,
           valueCount,
           totalSize,
           totalUncompressedSize);
@@ -109,6 +114,7 @@ abstract public class ColumnChunkMetaData {
    * @return the offset of the first byte in the chunk
    */
   public long getStartingPos() {
+    long indexPageOffset = getIndexPageOffset();
     long dictionaryPageOffset = getDictionaryPageOffset();
     long firstDataPageOffset = getFirstDataPageOffset();
     if (dictionaryPageOffset > 0 && dictionaryPageOffset < firstDataPageOffset) {
@@ -172,6 +178,10 @@ abstract public class ColumnChunkMetaData {
   abstract public long getDictionaryPageOffset();
 
   /**
+   * @return the location of the index page if any
+   */
+  abstract  public long getIndexPageOffset();
+  /**
    * @return count of values in this block of the column
    */
   abstract public long getValueCount();
@@ -212,6 +222,7 @@ class IntColumnChunkMetaData extends ColumnChunkMetaData {
 
   private final int firstDataPage;
   private final int dictionaryPageOffset;
+  private final int indexPageOffset;
   private final int valueCount;
   private final int totalSize;
   private final int totalUncompressedSize;
@@ -238,12 +249,14 @@ class IntColumnChunkMetaData extends ColumnChunkMetaData {
       Statistics statistics,
       long firstDataPage,
       long dictionaryPageOffset,
+      long indexPageOffset,
       long valueCount,
       long totalSize,
       long totalUncompressedSize) {
     super(encodingStats, ColumnChunkProperties.get(path, type, codec, encodings));
     this.firstDataPage = positiveLongToInt(firstDataPage);
     this.dictionaryPageOffset = positiveLongToInt(dictionaryPageOffset);
+    this.indexPageOffset = positiveLongToInt(indexPageOffset);
     this.valueCount = positiveLongToInt(valueCount);
     this.totalSize = positiveLongToInt(totalSize);
     this.totalUncompressedSize = positiveLongToInt(totalUncompressedSize);
@@ -286,6 +299,13 @@ class IntColumnChunkMetaData extends ColumnChunkMetaData {
   }
 
   /**
+   * @return the location of the index page if any
+   */
+  public long getIndexPageOffset() {
+    return intToPositiveLong(indexPageOffset);
+  }
+
+  /**
    * @return count of values in this block of the column
    */
   public long getValueCount() {
@@ -317,6 +337,7 @@ class LongColumnChunkMetaData extends ColumnChunkMetaData {
 
   private final long firstDataPageOffset;
   private final long dictionaryPageOffset;
+  private final long indexPageOffset;
   private final long valueCount;
   private final long totalSize;
   private final long totalUncompressedSize;
@@ -343,12 +364,14 @@ class LongColumnChunkMetaData extends ColumnChunkMetaData {
       Statistics statistics,
       long firstDataPageOffset,
       long dictionaryPageOffset,
+      long indexPageOffset,
       long valueCount,
       long totalSize,
       long totalUncompressedSize) {
     super(encodingStats, ColumnChunkProperties.get(path, type, codec, encodings));
     this.firstDataPageOffset = firstDataPageOffset;
     this.dictionaryPageOffset = dictionaryPageOffset;
+    this.indexPageOffset = indexPageOffset;
     this.valueCount = valueCount;
     this.totalSize = totalSize;
     this.totalUncompressedSize = totalUncompressedSize;
@@ -369,6 +392,12 @@ class LongColumnChunkMetaData extends ColumnChunkMetaData {
     return dictionaryPageOffset;
   }
 
+  /**
+   * @return the location of the index page of any
+   */
+  public long getIndexPageOffset(){
+    return indexPageOffset;
+  }
   /**
    * @return count of values in this block of the column
    */

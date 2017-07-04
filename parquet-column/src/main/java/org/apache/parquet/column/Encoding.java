@@ -29,9 +29,11 @@ import java.io.IOException;
 
 import org.apache.parquet.bytes.BytesUtils;
 import org.apache.parquet.column.page.DictionaryPage;
+import org.apache.parquet.column.page.IndexPage;
 import org.apache.parquet.column.values.ValuesReader;
 import org.apache.parquet.column.values.bitpacking.ByteBitPackingValuesReader;
-import org.apache.parquet.column.values.dictionary.IndexValuesReader;
+import org.apache.parquet.column.values.index.IndexValuesReader;
+import org.apache.parquet.column.values.index.PlainValuesIndex;
 import org.apache.parquet.column.values.rle.ZeroIntegerValuesReader;
 import org.apache.parquet.column.values.delta.DeltaBinaryPackingValuesReader;
 import org.apache.parquet.column.values.deltalengthbytearray.DeltaLengthByteArrayValuesReader;
@@ -106,6 +108,22 @@ public enum Encoding {
         throw new ParquetDecodingException("Dictionary encoding not supported for type: " + descriptor.getType());
       }
 
+    }
+
+    @Override
+    public Index initIndex(ColumnDescriptor descriptor, IndexPage indexPage) throws IOException {
+      switch (descriptor.getType()) {
+        case INT32:
+          return new PlainValuesIndex.PlainIntegerDictionary(indexPage);
+        case FIXED_LEN_BYTE_ARRAY:
+        case INT96:
+        case INT64:
+        case DOUBLE:
+        case BINARY:
+        case FLOAT:
+        default:
+          throw new ParquetDecodingException("Index encoding not supported for type: " + descriptor.getType());
+      }
     }
   },
 
@@ -218,6 +236,11 @@ public enum Encoding {
           throw new ParquetDecodingException("Dictionary encoding not supported for type: " + descriptor.getType());
       }
     }
+
+    @Override
+    public Index initIndex(ColumnDescriptor descriptor, IndexPage indexPage) throws IOException {
+      return PLAIN.initIndex(descriptor, indexPage);
+    }
   },
 
   /**
@@ -283,6 +306,10 @@ public enum Encoding {
    */
   public Dictionary initDictionary(ColumnDescriptor descriptor, DictionaryPage dictionaryPage) throws IOException {
     throw new UnsupportedOperationException(this.name() + " does not support dictionary");
+  }
+
+  public Index initIndex(ColumnDescriptor descriptor, IndexPage indexPage) throws IOException {
+    throw new UnsupportedOperationException(this.name() + " does not support index");
   }
 
   /**

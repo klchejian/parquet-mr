@@ -1,4 +1,4 @@
-/* 
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -417,6 +417,11 @@ public class ParquetWriter<T> implements Closeable {
       return self();
     }
 
+    public SELF withIndexPageSize(int indexPageSize) {
+      encodingPropsBuilder.withIndexPageSize(indexPageSize);
+      return self();
+    }
+
     /**
      * Set the maximum amount of padding, in bytes, that will be used to align
      * row groups with blocks in the underlying filesystem. If the underlying
@@ -437,6 +442,15 @@ public class ParquetWriter<T> implements Closeable {
      */
     public SELF enableDictionaryEncoding() {
       encodingPropsBuilder.withDictionaryEncoding(true);
+      return self();
+    }
+
+    /**
+     * Enables index encoding for the constructed writer.
+     * @return
+     */
+    public SELF enableIndexEncoding() {
+      encodingPropsBuilder.withIndexEncoding(true);
       return self();
     }
 

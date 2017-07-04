@@ -27,13 +27,7 @@ import java.util.Map;
 import org.apache.parquet.Ints;
 import org.apache.parquet.Log;
 import org.apache.parquet.column.ColumnDescriptor;
-import org.apache.parquet.column.page.DataPage;
-import org.apache.parquet.column.page.DataPageV1;
-import org.apache.parquet.column.page.DataPageV2;
-import org.apache.parquet.column.page.DictionaryPage;
-import org.apache.parquet.column.page.DictionaryPageReadStore;
-import org.apache.parquet.column.page.PageReadStore;
-import org.apache.parquet.column.page.PageReader;
+import org.apache.parquet.column.page.*;
 import org.apache.parquet.hadoop.CodecFactory.BytesDecompressor;
 import org.apache.parquet.io.ParquetDecodingException;
 
@@ -43,7 +37,7 @@ import org.apache.parquet.io.ParquetDecodingException;
  * in our format: columns, chunks, and pages
  *
  */
-class ColumnChunkPageReadStore implements PageReadStore, DictionaryPageReadStore {
+class ColumnChunkPageReadStore implements PageReadStore, DictionaryPageReadStore, IndexPageReadStore{
   private static final Log LOG = Log.getLog(ColumnChunkPageReadStore.class);
 
   /**
@@ -59,11 +53,13 @@ class ColumnChunkPageReadStore implements PageReadStore, DictionaryPageReadStore
     private final long valueCount;
     private final List<DataPage> compressedPages;
     private final DictionaryPage compressedDictionaryPage;
+    private final IndexPage compressedIndexPage;
 
-    ColumnChunkPageReader(BytesDecompressor decompressor, List<DataPage> compressedPages, DictionaryPage compressedDictionaryPage) {
+    ColumnChunkPageReader(BytesDecompressor decompressor, List<DataPage> compressedPages, DictionaryPage compressedDictionaryPage, IndexPage compressedIndexPage) {
       this.decompressor = decompressor;
       this.compressedPages = new LinkedList<DataPage>(compressedPages);
       this.compressedDictionaryPage = compressedDictionaryPage;
+      this.compressedIndexPage = compressedIndexPage;
       long count = 0;
       for (DataPage p : compressedPages) {
         count += p.getValueCount();
@@ -140,6 +136,21 @@ class ColumnChunkPageReadStore implements PageReadStore, DictionaryPageReadStore
         throw new ParquetDecodingException("Could not decompress dictionary page", e);
       }
     }
+
+    @Override
+    public IndexPage readIndexPage() {
+      if (compressedIndexPage == null) {
+        return null;
+      }
+      try {
+        return new IndexPage(
+          decompressor.decompress(compressedIndexPage.getBytes(), compressedIndexPage.getUncompressedSize()),
+          compressedIndexPage.getIndexSize(),
+          compressedIndexPage.getEncoding());
+      } catch (IOException e) {
+          throw new ParquetDecodingException("Could not decompress index page", e);
+        }
+      }
   }
 
   private final Map<ColumnDescriptor, ColumnChunkPageReader> readers = new HashMap<ColumnDescriptor, ColumnChunkPageReader>();
@@ -165,6 +176,11 @@ class ColumnChunkPageReadStore implements PageReadStore, DictionaryPageReadStore
   @Override
   public DictionaryPage readDictionaryPage(ColumnDescriptor descriptor) {
     return readers.get(descriptor).readDictionaryPage();
+  }
+
+  @Override
+  public IndexPage readIndexPage(ColumnDescriptor descriptor) {
+    return readers.get(descriptor).readIndexPage();
   }
 
   void addColumn(ColumnDescriptor path, ColumnChunkPageReader reader) {

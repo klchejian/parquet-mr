@@ -283,6 +283,19 @@ public class ParquetProperties {
     }
 
     /**
+     * Set the Parquet format index page size.
+     *
+     * @param indexPageSize
+     * @return
+     */
+    public Builder withIndexPageSize(int indexPageSize) {
+      Preconditions.checkArgument(indexPageSize > 0,
+        "Invalid index page size (negative): %s", indexPageSize);
+      this.indexPageSize = indexPageSize;
+      return this;
+    }
+
+    /**
      * Set the {@link WriterVersion format version}.
      *
      * @param version a {@code WriterVersion}

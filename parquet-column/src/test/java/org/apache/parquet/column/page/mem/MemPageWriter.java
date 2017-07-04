@@ -82,6 +82,10 @@ public class MemPageWriter implements PageWriter {
     return dictionaryPage;
   }
 
+  public IndexPage getIndexPage() {
+    return indexPage;
+  }
+
   public long getTotalValueCount() {
     return totalValueCount;
   }
@@ -105,7 +109,7 @@ public class MemPageWriter implements PageWriter {
   @Override
   public void writeIndexPage(IndexPage indexPage) throws IOException {
     if(this.indexPage != null){
-      throw new ParquetEncodingException(("Only one dictionary page per block"));
+      throw new ParquetEncodingException(("Only one index page per block"));
     }
     this.memSize += indexPage.getBytes().size();
     this.indexPage = indexPage.copy();

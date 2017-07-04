@@ -24,12 +24,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.ParquetProperties;
 import org.apache.parquet.column.impl.ColumnReaderImpl;
-import org.apache.parquet.column.page.DataPage;
-import org.apache.parquet.column.page.DataPageV1;
-import org.apache.parquet.column.page.DataPageV2;
-import org.apache.parquet.column.page.DictionaryPage;
-import org.apache.parquet.column.page.PageReadStore;
-import org.apache.parquet.column.page.PageReader;
+import org.apache.parquet.column.page.*;
 import org.apache.parquet.column.statistics.Statistics;
 import org.apache.parquet.example.data.Group;
 import org.apache.parquet.example.data.simple.SimpleGroup;
@@ -119,10 +114,12 @@ public class TestStatistics {
   }
 
   public static class SingletonPageReader implements PageReader {
+    private final IndexPage index;
     private final DictionaryPage dict;
     private final DataPage data;
 
-    public SingletonPageReader(DictionaryPage dict, DataPage data) {
+    public SingletonPageReader(IndexPage index, DictionaryPage dict, DataPage data) {
+      this.index = index;
       this.dict = dict;
       this.data = data;
     }
@@ -130,6 +127,11 @@ public class TestStatistics {
     @Override
     public DictionaryPage readDictionaryPage() {
       return dict;
+    }
+
+    @Override
+    public IndexPage readIndexPage() {
+      return index;
     }
 
     @Override
@@ -269,16 +271,17 @@ public class TestStatistics {
     public void validate(MessageType schema, PageReadStore store) {
       for (ColumnDescriptor desc : schema.getColumns()) {
         PageReader reader = store.getPageReader(desc);
+        IndexPage index = reader.readIndexPage();
         DictionaryPage dict = reader.readDictionaryPage();
         DataPage page;
         while ((page = reader.readPage()) != null) {
-          validateStatsForPage(page, dict, desc);
+          validateStatsForPage(page, dict, index, desc);
         }
       }
     }
 
-    private void validateStatsForPage(DataPage page, DictionaryPage dict, ColumnDescriptor desc) {
-      SingletonPageReader reader = new SingletonPageReader(dict, page);
+    private void validateStatsForPage(DataPage page, DictionaryPage dict, IndexPage index, ColumnDescriptor desc) {
+      SingletonPageReader reader = new SingletonPageReader(index, dict, page);
       PrimitiveConverter converter = getValidatingConverter(page, desc.getType());
       Statistics stats = getStatisticsFromPageHeader(page);
 

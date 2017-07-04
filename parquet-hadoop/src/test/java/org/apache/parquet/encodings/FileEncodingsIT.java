@@ -24,12 +24,7 @@ import org.apache.parquet.bytes.BytesInput;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.ParquetProperties.WriterVersion;
 import org.apache.parquet.column.impl.ColumnReaderImpl;
-import org.apache.parquet.column.page.DataPage;
-import org.apache.parquet.column.page.DataPageV1;
-import org.apache.parquet.column.page.DataPageV2;
-import org.apache.parquet.column.page.DictionaryPage;
-import org.apache.parquet.column.page.PageReadStore;
-import org.apache.parquet.column.page.PageReader;
+import org.apache.parquet.column.page.*;
 import org.apache.parquet.example.data.Group;
 import org.apache.parquet.example.data.simple.SimpleGroupFactory;
 import org.apache.parquet.format.converter.ParquetMetadataConverter;
@@ -335,14 +330,28 @@ public class FileEncodingsIT {
         for (ColumnDescriptor columnsDesc : fileSchema.getColumns()) {
           List<DataPage> pageGroup = getPageGroupForColumn(pageReadStore, columnsDesc);
           DictionaryPage dictPage = reusableCopy(getDictionaryPageForColumn(pageReadStore, columnsDesc));
+          IndexPage indexPage = reusableCopy(getIndexPageForColumn(pageReadStore, columnsDesc));
 
           List<?> expectedRowGroupValues = expectedValues.subList(rowsRead, (int)(rowsRead + pageReadStore.getRowCount()));
-          validateFirstToLast(rowGroupID, dictPage, pageGroup, columnsDesc, expectedRowGroupValues);
-          validateLastToFirst(rowGroupID, dictPage, pageGroup, columnsDesc, expectedRowGroupValues);
+          validateFirstToLast(rowGroupID, indexPage, dictPage, pageGroup, columnsDesc, expectedRowGroupValues);
+          validateLastToFirst(rowGroupID, indexPage, dictPage, pageGroup, columnsDesc, expectedRowGroupValues);
         }
 
         rowsRead += pageReadStore.getRowCount();
         rowGroupID++;
+      }
+    }
+
+    private static IndexPage reusableCopy(IndexPage index) {
+      if (index == null) {
+        return null;
+      }
+      try {
+        return new IndexPage(
+          BytesInput.from(index.getBytes().toByteArray()),
+          index.getIndexSize(),index.getEncoding());
+      } catch (IOException e) {
+        throw new ParquetDecodingException("Cannot read index" ,e);
       }
     }
 
@@ -389,25 +398,30 @@ public class FileEncodingsIT {
       });
     }
 
-    private static void validateFirstToLast(int rowGroupID, DictionaryPage dictPage, List<DataPage> pageGroup, ColumnDescriptor desc, List<?> expectedValues) {
+    private static void validateFirstToLast(int rowGroupID,IndexPage index, DictionaryPage dictPage, List<DataPage> pageGroup, ColumnDescriptor desc, List<?> expectedValues) {
       int rowsRead = 0, pageID = 0;
       for (DataPage page : pageGroup) {
         List<?> expectedPageValues = expectedValues.subList(rowsRead, rowsRead + page.getValueCount());
-        PageValuesValidator.validateValuesForPage(rowGroupID, pageID, dictPage, page, desc, expectedPageValues);
+        PageValuesValidator.validateValuesForPage(rowGroupID, pageID, index, dictPage, page, desc, expectedPageValues);
         rowsRead += page.getValueCount();
         pageID++;
       }
     }
 
-    private static void validateLastToFirst(int rowGroupID, DictionaryPage dictPage, List<DataPage> pageGroup, ColumnDescriptor desc, List<?> expectedValues) {
+    private static void validateLastToFirst(int rowGroupID,IndexPage index, DictionaryPage dictPage, List<DataPage> pageGroup, ColumnDescriptor desc, List<?> expectedValues) {
       int rowsLeft = expectedValues.size();
       for (int pageID = pageGroup.size() - 1; pageID >= 0; pageID--) {
         DataPage page = pageGroup.get(pageID);
         int offset = rowsLeft - page.getValueCount();
         List<?> expectedPageValues = expectedValues.subList(offset, offset + page.getValueCount());
-        PageValuesValidator.validateValuesForPage(rowGroupID, pageID, dictPage, page, desc, expectedPageValues);
+        PageValuesValidator.validateValuesForPage(rowGroupID, pageID, index, dictPage, page, desc, expectedPageValues);
         rowsLeft -= page.getValueCount();
       }
+    }
+
+    private static IndexPage getIndexPageForColumn(PageReadStore pageReadStore, ColumnDescriptor columnDescriptor) {
+      PageReader pageReader = pageReadStore.getPageReader(columnDescriptor);
+      return pageReader.readIndexPage();
     }
 
     private static DictionaryPage getDictionaryPageForColumn(PageReadStore pageReadStore, ColumnDescriptor columnDescriptor) {
@@ -470,8 +484,8 @@ public class FileEncodingsIT {
           rowGroupID, pageID, currentPos), expectedValues.get(currentPos++), value);
     }
 
-    public static void validateValuesForPage(int rowGroupID, int pageID, DictionaryPage dictPage, DataPage page, ColumnDescriptor columnDesc, List<?> expectedValues) {
-      TestStatistics.SingletonPageReader pageReader = new TestStatistics.SingletonPageReader(dictPage, page);
+    public static void validateValuesForPage(int rowGroupID, int pageID, IndexPage index, DictionaryPage dictPage, DataPage page, ColumnDescriptor columnDesc, List<?> expectedValues) {
+      TestStatistics.SingletonPageReader pageReader = new TestStatistics.SingletonPageReader(index, dictPage, page);
       PrimitiveConverter converter = getConverter(rowGroupID, pageID, columnDesc.getType(), expectedValues);
       ColumnReaderImpl column = new ColumnReaderImpl(columnDesc, pageReader, converter, null);
       for (int i = 0; i < pageReader.getTotalValueCount(); i += 1) {

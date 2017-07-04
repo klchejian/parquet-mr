@@ -18,31 +18,19 @@
  */
 package org.apache.parquet.column.page;
 
+import org.apache.parquet.column.ColumnDescriptor;
+
 /**
- * Reader for a sequence a page from a given column chunk
- *
- * @author Julien Le Dem
- *
+ * Interface to read index pages for all the columns of a row group
  */
-public interface PageReader {
-
- /**
-  * @return the dictionary page in that chunk or null if none
-  */
-  DictionaryPage readDictionaryPage();
+public interface IndexPageReadStore {
 
   /**
-   * @return the index page in that chunk or null if none
+   * Returns a {@link IndexPage} for the given column descriptor.
+   * The index page bytes are uncompressed.
+   *
+   * @param descriptor the descriptor of the column
+   * @return the IndexPage for that column, or null if there isn't one
    */
-  IndexPage readIndexPage();
-
-  /**
-   * @return the total number of values in the column chunk
-   */
-  long getTotalValueCount();
-
-  /**
-   * @return the next page in that chunk or null if after the last page
-   */
-  DataPage readPage();
+  IndexPage readIndexPage(ColumnDescriptor descriptor);
 }

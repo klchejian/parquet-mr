@@ -16,42 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.parquet.column.values.dictionary;
+package org.apache.parquet.column.values.index;
 
-import it.unimi.dsi.fastutil.doubles.Double2IntLinkedOpenHashMap;
-import it.unimi.dsi.fastutil.doubles.Double2IntMap;
-import it.unimi.dsi.fastutil.doubles.DoubleIterator;
-import it.unimi.dsi.fastutil.floats.Float2IntLinkedOpenHashMap;
-import it.unimi.dsi.fastutil.floats.Float2IntMap;
-import it.unimi.dsi.fastutil.floats.FloatIterator;
-import it.unimi.dsi.fastutil.ints.Int2IntLinkedOpenHashMap;
-import it.unimi.dsi.fastutil.ints.Int2IntMap;
-import it.unimi.dsi.fastutil.longs.Long2IntLinkedOpenHashMap;
-import it.unimi.dsi.fastutil.longs.Long2IntMap;
-import it.unimi.dsi.fastutil.longs.LongIterator;
-import it.unimi.dsi.fastutil.objects.Object2IntLinkedOpenHashMap;
-import it.unimi.dsi.fastutil.objects.Object2IntMap;
-import it.unimi.dsi.fastutil.objects.ObjectIterator;
 import org.apache.parquet.Log;
 import org.apache.parquet.bytes.*;
 import org.apache.parquet.column.Encoding;
-import org.apache.parquet.column.page.DictionaryPage;
 import org.apache.parquet.column.page.IndexPage;
-import org.apache.parquet.column.values.RequiresFallback;
 import org.apache.parquet.column.values.ValuesWriter;
+import org.apache.parquet.column.values.dictionary.IntList;
 import org.apache.parquet.column.values.dictionary.IntList.IntIterator;
-import org.apache.parquet.column.values.plain.FixedLenByteArrayPlainValuesWriter;
 import org.apache.parquet.column.values.plain.PlainValuesWriter;
 import org.apache.parquet.column.values.rle.RunLengthBitPackingHybridEncoder;
 import org.apache.parquet.io.ParquetEncodingException;
 import org.apache.parquet.io.api.Binary;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.util.*;
 
-import static org.apache.parquet.Log.DEBUG;
 import static org.apache.parquet.bytes.BytesInput.concat;
 
 /**
@@ -228,7 +209,7 @@ public abstract class IndexValuesWriter extends ValuesWriter {
 
     @Override
     public BytesInput getBytes() {
-      int indexSize = intContent.size()-1;
+      int indexSize = indexSet.size()-1;
       int bitWidth = BytesUtils.getWidthFromMaxInt(indexSize);
       int initlalSlabSize = CapacityByteArrayOutputStream.initialSlabSizeHeuristic(MIN_INITIAL_SLAB_SIZE,maxIndexByteSize,10);
       RunLengthBitPackingHybridEncoder encoder = new RunLengthBitPackingHybridEncoder(bitWidth,initlalSlabSize,maxIndexByteSize,this.allocator);
@@ -244,7 +225,7 @@ public abstract class IndexValuesWriter extends ValuesWriter {
         BytesInput rleEncodeBytes = encoder.toBytes();
         BytesInput bytes = concat(BytesInput.from(bytesHeader),rleEncodeBytes);
 
-        lastUsedIndexSize = intContent.size();
+        lastUsedIndexSize = indexSet.size();
         lastUsedIndexByteSize = indexByteSize;
         return bytes;
       }catch(IOException e){
@@ -257,7 +238,101 @@ public abstract class IndexValuesWriter extends ValuesWriter {
       if(lastUsedIndexSize>0){
         int pageSize=maxIndexByteSize;
         PlainValuesWriter indexEncoder = new PlainValuesWriter(lastUsedIndexByteSize,maxIndexByteSize,allocator);
-        IntIterator intIterator = intContent.iterator();
+        Iterator<Integer> intIterator = indexSet.iterator();
+
+        for(int i = 0 ; i < lastUsedIndexSize; i++){
+          indexEncoder.writeInteger(intIterator.next());
+        }
+        return indexPage(indexEncoder);
+      }
+      return null;
+    }
+
+    @Override
+    public long getBufferedSize() {
+//      strbuf.
+      return indexByteSize;
+    }
+
+    @Override
+    public long getAllocatedSize() {
+      return indexByteSize;
+    }
+
+    @Override
+    public String memUsageString(String prefix) {
+      return String.format(
+        "%s DictionaryValuesWriter{\n"
+          + "%s\n"
+          + "%s\n"
+          + "%s}\n",
+        prefix,
+        prefix + " index:" + indexByteSize,
+        prefix + " values:",
+        prefix
+      );
+    }
+  }
+
+  public static class BloomFilterIndexValuesWriter extends IndexValuesWriter {
+
+    private IntList intContent = new IntList();
+    private Set<Integer> indexSet = new HashSet<>();
+
+    StringBuffer strbuf = new StringBuffer();
+    private List<RunLengthBitPackingHybridEncoder> encoders = new ArrayList<RunLengthBitPackingHybridEncoder>();
+
+
+
+
+    public BloomFilterIndexValuesWriter(int maxIndexByteSize, Encoding encodingForDataPage, Encoding encodingForIndexpage, ByteBufferAllocator allocator){
+      super(maxIndexByteSize,encodingForDataPage,encodingForIndexpage,allocator);
+    }
+
+    @Override
+    public void writeInteger(int v) {
+      if(!indexSet.contains(v)){
+        indexSet.add(v);
+        indexByteSize += 4;
+      }
+      intContent.add(v);
+
+    }
+
+
+
+    @Override
+    public BytesInput getBytes() {
+      int indexSize = indexSet.size()-1;
+      int bitWidth = BytesUtils.getWidthFromMaxInt(indexSize);
+      int initlalSlabSize = CapacityByteArrayOutputStream.initialSlabSizeHeuristic(MIN_INITIAL_SLAB_SIZE,maxIndexByteSize,10);
+      RunLengthBitPackingHybridEncoder encoder = new RunLengthBitPackingHybridEncoder(bitWidth,initlalSlabSize,maxIndexByteSize,this.allocator);
+      encoders.add(encoder);
+
+      IntIterator intIterator = intContent.iterator();
+      try{
+        while(intIterator.hasNext()){
+          encoder.writeInt(intIterator.next());
+        }
+
+        byte[] bytesHeader = new byte[] { (byte) bitWidth };
+        BytesInput rleEncodeBytes = encoder.toBytes();
+        BytesInput bytes = concat(BytesInput.from(bytesHeader),rleEncodeBytes);
+
+        lastUsedIndexSize = indexSet.size();
+        lastUsedIndexByteSize = indexByteSize;
+        return bytes;
+      }catch(IOException e){
+        throw new ParquetEncodingException("could not encode the values",e);
+      }
+    }
+
+    @Override
+    public IndexPage toIndexPageAndClose() {
+      if(lastUsedIndexSize>0){
+        int pageSize=maxIndexByteSize;
+        PlainValuesWriter indexEncoder = new PlainValuesWriter(lastUsedIndexByteSize,maxIndexByteSize,allocator);
+        Iterator<Integer> intIterator = indexSet.iterator();
 
         for(int i = 0 ; i < lastUsedIndexSize; i++){
           indexEncoder.writeInteger(intIterator.next());

@@ -26,6 +26,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
+import static org.apache.parquet.column.Encoding.INDEX;
 import static org.apache.parquet.column.Encoding.PLAIN_DICTIONARY;
 import static org.apache.parquet.column.Encoding.RLE_DICTIONARY;
 
@@ -36,16 +37,23 @@ import static org.apache.parquet.column.Encoding.RLE_DICTIONARY;
  * convenience methods for those checks, like {@link #hasNonDictionaryEncodedPages()}.
  */
 public class EncodingStats {
+  final Map<Encoding, Integer> indexStats;
   final Map<Encoding, Integer> dictStats;
   final Map<Encoding, Integer> dataStats;
   private final boolean usesV2Pages;
 
-  private EncodingStats(Map<Encoding, Integer> dictStats,
+  private EncodingStats(Map<Encoding, Integer> indexStats,
+                        Map<Encoding, Integer> dictStats,
                         Map<Encoding, Integer> dataStats,
                         boolean usesV2Pages) {
+    this.indexStats = indexStats;
     this.dictStats = dictStats;
     this.dataStats = dataStats;
     this.usesV2Pages = usesV2Pages;
+  }
+
+  public Set<Encoding> getIndexEncodings() {
+    return indexStats.keySet();
   }
 
   public Set<Encoding> getDictionaryEncodings() {
@@ -54,6 +62,14 @@ public class EncodingStats {
 
   public Set<Encoding> getDataEncodings() {
     return dataStats.keySet();
+  }
+
+  public int getNumIndexPagesEncodedAs(Encoding enc) {
+    if (indexStats.containsKey(enc)) {
+      return indexStats.get(enc);
+    } else {
+      return 0;
+    }
   }
 
   public int getNumDictionaryPagesEncodedAs(Encoding enc) {
@@ -70,6 +86,34 @@ public class EncodingStats {
     } else {
       return 0;
     }
+  }
+
+  public boolean hasIndexPages(){
+    return !indexStats.isEmpty();
+  }
+
+  public boolean hasIndexEncodedPages() {
+    Set<Encoding> encodings = dataStats.keySet();
+    return (encodings.contains(INDEX));
+  }
+
+  public boolean hasNonIndexEncodedPages() {
+    if(dataStats.isEmpty()){
+      return false;
+    }
+
+    //this modifies the set, so copy it
+    Set<Encoding> encodings  = new HashSet<Encoding>(dataStats.keySet());
+    if(!encodings.remove(INDEX)) {
+      return true; //not index encoded
+    }
+
+    if(encodings.isEmpty()){
+      return false;
+    }
+
+    // at least one non-dictionary encoding is present
+    return true;
   }
 
   public boolean hasDictionaryPages() {
@@ -109,12 +153,14 @@ public class EncodingStats {
    * Used to build {@link EncodingStats} from metadata or to accumulate stats as pages are written.
    */
   public static class Builder {
+    private final Map<Encoding, Integer> indexStats = new LinkedHashMap<Encoding, Integer>();
     private final Map<Encoding, Integer> dictStats = new LinkedHashMap<Encoding, Integer>();
     private final Map<Encoding, Integer> dataStats = new LinkedHashMap<Encoding, Integer>();
     private boolean usesV2Pages = false;
 
     public Builder clear() {
       this.usesV2Pages = false;
+      indexStats.clear();
       dictStats.clear();
       dataStats.clear();
       return this;
@@ -123,6 +169,17 @@ public class EncodingStats {
     public Builder withV2Pages() {
       this.usesV2Pages = true;
       return this;
+    }
+
+    public Builder addIndexEncoding(Encoding encoding) {
+      return addIndexEncoding(encoding, 1);
+    }
+
+    public Builder addIndexEncoding(Encoding encoding, int numPages) {
+      Integer pages = indexStats.get(encoding);
+      indexStats.put(encoding, numPages + (pages != null ? pages : 0));
+      return this;
+
     }
 
     public Builder addDictEncoding(Encoding encoding) {
@@ -154,6 +211,7 @@ public class EncodingStats {
 
     public EncodingStats build() {
       return new EncodingStats(
+          Collections.unmodifiableMap(new LinkedHashMap<Encoding, Integer>(indexStats)),
           Collections.unmodifiableMap(new LinkedHashMap<Encoding, Integer>(dictStats)),
           Collections.unmodifiableMap(new LinkedHashMap<Encoding, Integer>(dataStats)),
           usesV2Pages);

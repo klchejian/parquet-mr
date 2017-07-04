@@ -62,24 +62,15 @@ import org.apache.parquet.bytes.ByteBufferAllocator;
 import org.apache.parquet.bytes.ByteBufferInputStream;
 import org.apache.parquet.bytes.HeapByteBufferAllocator;
 import org.apache.parquet.column.Encoding;
-import org.apache.parquet.column.page.DictionaryPageReadStore;
+import org.apache.parquet.column.page.*;
 import org.apache.parquet.filter2.compat.FilterCompat;
 import org.apache.parquet.filter2.compat.RowGroupFilter;
 
 import org.apache.parquet.Log;
 import org.apache.parquet.bytes.BytesInput;
 import org.apache.parquet.column.ColumnDescriptor;
-import org.apache.parquet.column.page.DataPage;
-import org.apache.parquet.column.page.DataPageV1;
-import org.apache.parquet.column.page.DataPageV2;
-import org.apache.parquet.column.page.DictionaryPage;
-import org.apache.parquet.column.page.PageReadStore;
+import org.apache.parquet.format.*;
 import org.apache.parquet.hadoop.metadata.ColumnPath;
-import org.apache.parquet.format.DataPageHeader;
-import org.apache.parquet.format.DataPageHeaderV2;
-import org.apache.parquet.format.DictionaryPageHeader;
-import org.apache.parquet.format.PageHeader;
-import org.apache.parquet.format.Util;
 import org.apache.parquet.format.converter.ParquetMetadataConverter;
 import org.apache.parquet.format.converter.ParquetMetadataConverter.MetadataFilter;
 import org.apache.parquet.hadoop.CodecFactory.BytesDecompressor;
@@ -530,6 +521,7 @@ public class ParquetFileReader implements Closeable {
   private int currentBlock = 0;
   private ColumnChunkPageReadStore currentRowGroup = null;
   private DictionaryPageReader nextDictionaryReader = null;
+  private IndexPageReader nextIndexReader = null;
 
   /**
    * @deprecated use @link{ParquetFileReader(Configuration configuration, FileMetaData fileMetaData,
@@ -730,6 +722,11 @@ public class ParquetFileReader implements Closeable {
       nextDictionaryReader.setRowGroup(currentRowGroup);
     }
 
+    // avoid re-reading bytes the index reader is used after this call
+    if (nextIndexReader != null) {
+      nextIndexReader.setRowGroup(currentRowGroup);
+    }
+
     advanceToNextBlock();
 
     return currentRowGroup;
@@ -820,6 +817,63 @@ public class ParquetFileReader implements Closeable {
         converter.getEncoding(dictHeader.getEncoding()));
   }
 
+  public IndexPageReadStore getNextIndexReader() {
+    if(nextIndexReader == null && currentBlock < blocks.size()) {
+      this.nextIndexReader = getIndexReader(blocks.get(currentBlock));
+    }
+    return nextIndexReader;
+  }
+
+  public IndexPageReader getIndexReader(BlockMetaData block) {
+    return new IndexPageReader(this, block);
+  }
+
+  /**
+   * Reads and decompress a index page for the giben column chunk.
+   *
+   * Returns null if the giben column chunk has no index page.
+   *
+   * @param meta meta a column's ColumnChunkMetaData to read the index from
+   * @return an uncompressed IndexPage or null
+   * @throws IOException
+   */
+  IndexPage readIndex(ColumnChunkMetaData meta) throws IOException {
+    if(!meta.getEncodings().contains(Encoding.INDEX)) {
+      return null;
+    }
+
+    if(f.getPos() != meta.getStartingPos()) {
+      f.seek(meta.getStartingPos());
+    }
+
+    PageHeader pageHeader = Util.readPageHeader(f);
+    if(!pageHeader.isSetIndex_page_header()) {
+      return null;
+    }
+
+    IndexPage compressedPage = readCompressedIndex(pageHeader, f);
+    BytesDecompressor decompressor = codecFactory.getDecompressor(meta.getCodec());
+
+    return new IndexPage(
+        decompressor.decompress(compressedPage.getBytes(),compressedPage.getUncompressedSize()),
+        compressedPage.getIndexSize(),
+        compressedPage.getEncoding());
+  }
+
+  private IndexPage readCompressedIndex(PageHeader pageHeader, SeekableInputStream fin) throws IOException {
+    IndexPageHeader indexHeader = pageHeader.getIndex_page_header();
+
+    int uncompressedPageSize = pageHeader.getUncompressed_page_size();
+    int compressedpageSize = pageHeader.getCompressed_page_size();
+
+    byte [] indexPageBytes = new byte[compressedpageSize];
+    fin.readFully(indexPageBytes);
+
+    BytesInput bin = BytesInput.from(indexPageBytes);
+
+    return new IndexPage(bin, pageHeader.getIndex_page_header().num_values,Encoding.INDEX);
+
+  }
   @Override
   public void close() throws IOException {
     try {
@@ -865,6 +919,7 @@ public class ParquetFileReader implements Closeable {
     public ColumnChunkPageReader readAllPages() throws IOException {
       List<DataPage> pagesInChunk = new ArrayList<DataPage>();
       DictionaryPage dictionaryPage = null;
+      IndexPage indexPage = null;
       PrimitiveType type = getFileMetaData().getSchema()
           .getType(descriptor.col.getPath()).asPrimitiveType();
       long valuesCountReadSoFar = 0;
@@ -873,6 +928,19 @@ public class ParquetFileReader implements Closeable {
         int uncompressedPageSize = pageHeader.getUncompressed_page_size();
         int compressedPageSize = pageHeader.getCompressed_page_size();
         switch (pageHeader.type) {
+          case INDEX_PAGE:
+            // there is only one index page per column chunk
+            if (indexPage != null) {
+              throw new ParquetDecodingException("more than one index page in column " + descriptor.col);
+            }
+            IndexPageHeader indexHeader = pageHeader.getIndex_page_header();
+            indexPage =
+              new IndexPage(
+                this.readAsBytesInput(compressedPageSize),
+                1,
+                Encoding.INDEX
+              );
+            break;
           case DICTIONARY_PAGE:
             // there is only one dictionary page per column chunk
             if (dictionaryPage != null) {
@@ -942,7 +1010,7 @@ public class ParquetFileReader implements Closeable {
             + " pages ending at file offset " + (descriptor.fileOffset + pos()));
       }
       BytesDecompressor decompressor = codecFactory.getDecompressor(descriptor.metadata.getCodec());
-      return new ColumnChunkPageReader(decompressor, pagesInChunk, dictionaryPage);
+      return new ColumnChunkPageReader(decompressor, pagesInChunk, dictionaryPage, indexPage);
     }
 
     /**

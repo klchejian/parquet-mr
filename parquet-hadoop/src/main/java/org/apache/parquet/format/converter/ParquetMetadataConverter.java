@@ -1,4 +1,4 @@
-/* 
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -39,24 +39,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.parquet.CorruptStatistics;
 import org.apache.parquet.Log;
-import org.apache.parquet.format.PageEncodingStats;
+import org.apache.parquet.format.*;
 import org.apache.parquet.hadoop.metadata.ColumnPath;
-import org.apache.parquet.format.ColumnChunk;
-import org.apache.parquet.format.ColumnMetaData;
-import org.apache.parquet.format.ConvertedType;
-import org.apache.parquet.format.DataPageHeader;
-import org.apache.parquet.format.DataPageHeaderV2;
-import org.apache.parquet.format.DictionaryPageHeader;
-import org.apache.parquet.format.Encoding;
-import org.apache.parquet.format.FieldRepetitionType;
-import org.apache.parquet.format.FileMetaData;
-import org.apache.parquet.format.KeyValue;
-import org.apache.parquet.format.PageHeader;
-import org.apache.parquet.format.PageType;
-import org.apache.parquet.format.RowGroup;
-import org.apache.parquet.format.SchemaElement;
-import org.apache.parquet.format.Statistics;
-import org.apache.parquet.format.Type;
 import org.apache.parquet.hadoop.metadata.BlockMetaData;
 import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
 import org.apache.parquet.hadoop.metadata.CompressionCodecName;
@@ -272,6 +256,8 @@ public class ParquetMetadataConverter {
           builder.addDictEncoding(
               getEncoding(stat.getEncoding()), stat.getCount());
           break;
+        case INDEX_PAGE:
+          builder.addIndexEncoding(getEncoding(stat.getEncoding()), stat.getCount());
       }
     }
     return builder.build();
@@ -283,6 +269,11 @@ public class ParquetMetadataConverter {
     }
 
     List<PageEncodingStats> formatStats = new ArrayList<PageEncodingStats>();
+    for(org.apache.parquet.column.Encoding encoding : stats.getIndexEncodings()) {
+      formatStats.add(new PageEncodingStats(
+        PageType.INDEX_PAGE,getEncoding(encoding),
+        stats.getNumIndexPagesEncodedAs(encoding)));
+    }
     for (org.apache.parquet.column.Encoding encoding : stats.getDictionaryEncodings()) {
       formatStats.add(new PageEncodingStats(
           PageType.DICTIONARY_PAGE, getEncoding(encoding),
@@ -825,6 +816,7 @@ public class ParquetMetadataConverter {
                   messageType.getType(path.toArray()).asPrimitiveType()),
               metaData.data_page_offset,
               metaData.dictionary_page_offset,
+              metaData.index_page_offset,
               metaData.num_values,
               metaData.total_compressed_size,
               metaData.total_uncompressed_size);
@@ -1008,6 +1000,14 @@ public class ParquetMetadataConverter {
     PageHeader pageHeader = new PageHeader(PageType.DICTIONARY_PAGE, uncompressedSize, compressedSize);
     pageHeader.setDictionary_page_header(new DictionaryPageHeader(valueCount, getEncoding(valuesEncoding)));
     writePageHeader(pageHeader, to);
+  }
+
+  public void writeIndexPageHeader(
+    int uncompressedSize, int compressedSize, int valuesCount, org.apache.parquet.column.Encoding valuesEncoding, OutputStream to) throws IOException {
+    PageHeader pageHeader = new PageHeader(PageType.INDEX_PAGE, uncompressedSize, compressedSize);
+    pageHeader.setIndex_page_header(new IndexPageHeader(valuesCount,getEncoding(valuesEncoding)));
+    writePageHeader(pageHeader, to);
+
   }
 
 }

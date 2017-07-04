@@ -38,7 +38,7 @@ public abstract class Index {
     return encoding;
   }
 
-//  public abstract int getMaxId();
+  public abstract int getMaxId();
 
   public Binary decodeToBinary(int id) {
     throw new UnsupportedOperationException(this.getClass().getName());
