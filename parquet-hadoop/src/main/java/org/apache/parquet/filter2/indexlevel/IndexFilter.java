@@ -18,6 +18,7 @@
  */
 package org.apache.parquet.filter2.indexlevel;
 
+import javafx.scene.effect.Bloom;
 import org.apache.parquet.Log;
 import org.apache.parquet.column.*;
 import org.apache.parquet.column.Dictionary;
@@ -25,11 +26,13 @@ import org.apache.parquet.column.page.DictionaryPage;
 import org.apache.parquet.column.page.DictionaryPageReadStore;
 import org.apache.parquet.column.page.IndexPage;
 import org.apache.parquet.column.page.IndexPageReadStore;
+import org.apache.parquet.column.values.index.BloomFilter;
 import org.apache.parquet.filter2.predicate.FilterPredicate;
 import org.apache.parquet.filter2.predicate.Operators.*;
 import org.apache.parquet.filter2.predicate.UserDefinedPredicate;
 import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
 import org.apache.parquet.hadoop.metadata.ColumnPath;
+import org.apache.parquet.io.api.Binary;
 
 import java.io.IOException;
 import java.util.*;
@@ -54,6 +57,7 @@ public class IndexFilter implements FilterPredicate.Visitor<Boolean> {
 
   private final Map<ColumnPath, ColumnChunkMetaData> columns = new HashMap<ColumnPath, ColumnChunkMetaData>();
   private final IndexPageReadStore indices;
+  private IndexTypeName indexTypeName;
 
   private IndexFilter(List<ColumnChunkMetaData> columnsList, IndexPageReadStore indices) {
     for (ColumnChunkMetaData chunk : columnsList) {
@@ -61,6 +65,8 @@ public class IndexFilter implements FilterPredicate.Visitor<Boolean> {
     }
 
     this.indices = indices;
+
+
   }
 
   private ColumnChunkMetaData getColumnChunk(ColumnPath columnPath) {
@@ -68,7 +74,7 @@ public class IndexFilter implements FilterPredicate.Visitor<Boolean> {
   }
 
   @SuppressWarnings("unchecked")
-  private <T extends Comparable<T>> Set<T> expandIndex(ColumnChunkMetaData meta) throws IOException {
+  private long[] expandIndex(ColumnChunkMetaData meta) throws IOException {
     ColumnDescriptor col = new ColumnDescriptor(meta.getPath().toArray(), meta.getType(), -1, -1);
     IndexPage page = indices.readIndexPage(col);
 
@@ -79,26 +85,30 @@ public class IndexFilter implements FilterPredicate.Visitor<Boolean> {
 
     Index index = page.getEncoding().initIndex(col, page);
 
-    Set indexSet = new HashSet<T>();
+    indexTypeName = index.getIndexTypeName();
 
-    for (int i=0; i<=index.getMaxId(); i++) {
-      switch(meta.getType()) {
-        case BINARY: indexSet.add(index.decodeToBinary(i));
-          break;
-        case INT32: indexSet.add(index.decodeToInt(i));
-          break;
-        case INT64: indexSet.add(index.decodeToLong(i));
-          break;
-        case FLOAT: indexSet.add(index.decodeToFloat(i));
-          break;
-        case DOUBLE: indexSet.add(index.decodeToDouble(i));
-          break;
-        default:
-          LOG.warn("Unknown index type" + meta.getType());
-      }
+    long[] indexByte = new long[index.getMaxId()+1];
+//    Set indexSet = new HashSet<T>();
+
+    for (int i=0; i<index.getMaxId()+1; i++) {
+      indexByte[i] = index.decodeToLong(i);
+//      switch(meta.getType()) {
+//        case BINARY: indexSet.add(index.decodeToBinary(i));
+//          break;
+//        case INT32: indexSet.add(index.decodeToInt(i));
+//          break;
+//        case INT64: indexSet.add(index.decodeToLong(i));
+//          break;
+//        case FLOAT: indexSet.add(index.decodeToFloat(i));
+//          break;
+//        case DOUBLE: indexSet.add(index.decodeToDouble(i));
+//          break;
+//        default:
+//          LOG.warn("Unknown index type" + meta.getType());
+//      }
     }
 
-    return (Set<T>) indexSet;
+    return indexByte;
   }
 
   @Override
@@ -127,9 +137,18 @@ public class IndexFilter implements FilterPredicate.Visitor<Boolean> {
     }
 
     try {
-      Set<T> indexSet = expandIndex(meta);
-      if (indexSet != null && !indexSet.contains(value)) {
-        return BLOCK_CANNOT_MATCH;
+      long[] indexByte = expandIndex(meta);
+
+      BloomFilter bloomFilter = new BloomFilter((int)indexByte[0], (int)indexByte[1]);
+      bloomFilter.setBitSet(Arrays.copyOfRange(indexByte, 2,indexByte.length));
+      switch(meta.getType()) {
+        case BINARY: return !bloomFilter.testBinary((Binary) value);
+        case INT32: return !bloomFilter.testInteger((Integer) value);
+        case INT64: return !bloomFilter.testLong((Long) value);
+        case FLOAT: return !bloomFilter.testFloat((Float) value);
+        case DOUBLE: return !bloomFilter.testDouble((Double) value);
+        default:
+          LOG.warn("Unknown data type" + meta.getType());
       }
     } catch (IOException e) {
       LOG.warn("Failed to process index for filter evaluation.", e);
@@ -169,14 +188,14 @@ public class IndexFilter implements FilterPredicate.Visitor<Boolean> {
       return BLOCK_MIGHT_MATCH;
     }
 
-    try {
-      Set<T> dictSet = expandIndex(meta);
-      if (dictSet != null && dictSet.size() == 1 && dictSet.contains(value)) {
-        return BLOCK_CANNOT_MATCH;
-      }
-    } catch (IOException e) {
-      LOG.warn("Failed to process index for filter evaluation.", e);
-    }
+//    try {
+//      Set<T> dictSet = expandIndex(meta);
+//      if (dictSet != null && dictSet.size() == 1 && dictSet.contains(value)) {
+//        return BLOCK_CANNOT_MATCH;
+//      }
+//    } catch (IOException e) {
+//      LOG.warn("Failed to process index for filter evaluation.", e);
+//    }
 
     return BLOCK_MIGHT_MATCH;
   }
@@ -201,16 +220,27 @@ public class IndexFilter implements FilterPredicate.Visitor<Boolean> {
     T value = lt.getValue();
 
     try {
-      Set<T> dictSet = expandIndex(meta);
-      if (dictSet == null) {
+      long[] indexByte = expandIndex(meta);
+      if (indexByte == null) {
         return BLOCK_MIGHT_MATCH;
       }
 
-      for(T entry : dictSet) {
-        if(value.compareTo(entry) > 0) {
-          return BLOCK_MIGHT_MATCH;
-        }
+      BloomFilter bloomFilter = new BloomFilter((int)indexByte[0], (int)indexByte[1]);
+      bloomFilter.setBitSet(Arrays.copyOfRange(indexByte, 2,indexByte.length-1));
+      switch(meta.getType()) {
+        case BINARY: return !bloomFilter.testBinary((Binary) value);
+        case INT32: return !bloomFilter.testInteger((Integer) value);
+        case INT64: return !bloomFilter.testLong((Long) value);
+        case FLOAT: return !bloomFilter.testFloat((Float) value);
+        case DOUBLE: return !bloomFilter.testDouble((Double) value);
+        default:
+          LOG.warn("Unknown data type" + meta.getType());
       }
+//      for(T entry : indexSet) {
+//        if(value.compareTo(entry) > 0) {
+//          return BLOCK_MIGHT_MATCH;
+//        }
+//      }
 
       return BLOCK_CANNOT_MATCH;
     } catch (IOException e) {
@@ -241,22 +271,22 @@ public class IndexFilter implements FilterPredicate.Visitor<Boolean> {
 
     filterColumn.getColumnPath();
 
-    try {
-      Set<T> dictSet = expandIndex(meta);
-      if (dictSet == null) {
-        return BLOCK_MIGHT_MATCH;
-      }
-
-      for(T entry : dictSet) {
-        if(value.compareTo(entry) >= 0) {
-          return BLOCK_MIGHT_MATCH;
-        }
-      }
-
-      return BLOCK_CANNOT_MATCH;
-    } catch (IOException e) {
-      LOG.warn("Failed to process index for filter evaluation.", e);
-    }
+//    try {
+//      Set<T> dictSet = expandIndex(meta);
+//      if (dictSet == null) {
+//        return BLOCK_MIGHT_MATCH;
+//      }
+//
+//      for(T entry : dictSet) {
+//        if(value.compareTo(entry) >= 0) {
+//          return BLOCK_MIGHT_MATCH;
+//        }
+//      }
+//
+//      return BLOCK_CANNOT_MATCH;
+//    } catch (IOException e) {
+//      LOG.warn("Failed to process index for filter evaluation.", e);
+//    }
 
     return BLOCK_MIGHT_MATCH;
   }
@@ -280,22 +310,22 @@ public class IndexFilter implements FilterPredicate.Visitor<Boolean> {
 
     T value = gt.getValue();
 
-    try {
-      Set<T> dictSet = expandIndex(meta);
-      if (dictSet == null) {
-        return BLOCK_MIGHT_MATCH;
-      }
-
-      for(T entry : dictSet) {
-        if(value.compareTo(entry) < 0) {
-          return BLOCK_MIGHT_MATCH;
-        }
-      }
-
-      return BLOCK_CANNOT_MATCH;
-    } catch (IOException e) {
-      LOG.warn("Failed to process index for filter evaluation.", e);
-    }
+//    try {
+//      Set<T> dictSet = expandIndex(meta);
+//      if (dictSet == null) {
+//        return BLOCK_MIGHT_MATCH;
+//      }
+//
+//      for(T entry : dictSet) {
+//        if(value.compareTo(entry) < 0) {
+//          return BLOCK_MIGHT_MATCH;
+//        }
+//      }
+//
+//      return BLOCK_CANNOT_MATCH;
+//    } catch (IOException e) {
+//      LOG.warn("Failed to process index for filter evaluation.", e);
+//    }
 
     return BLOCK_MIGHT_MATCH;
   }
@@ -321,22 +351,22 @@ public class IndexFilter implements FilterPredicate.Visitor<Boolean> {
 
     filterColumn.getColumnPath();
 
-    try {
-      Set<T> dictSet = expandIndex(meta);
-      if (dictSet == null) {
-        return BLOCK_MIGHT_MATCH;
-      }
-
-      for(T entry : dictSet) {
-        if(value.compareTo(entry) <= 0) {
-          return BLOCK_MIGHT_MATCH;
-        }
-      }
-
-      return BLOCK_CANNOT_MATCH;
-    } catch (IOException e) {
-      LOG.warn("Failed to process index for filter evaluation.", e);
-    }
+//    try {
+//      Set<T> dictSet = expandIndex(meta);
+//      if (dictSet == null) {
+//        return BLOCK_MIGHT_MATCH;
+//      }
+//
+//      for(T entry : dictSet) {
+//        if(value.compareTo(entry) <= 0) {
+//          return BLOCK_MIGHT_MATCH;
+//        }
+//      }
+//
+//      return BLOCK_CANNOT_MATCH;
+//    } catch (IOException e) {
+//      LOG.warn("Failed to process index for filter evaluation.", e);
+//    }
 
     return BLOCK_MIGHT_MATCH;
   }

@@ -19,11 +19,13 @@
 
 package org.apache.parquet.filter2.indexlevel;
 
+import org.apache.avro.generic.GenericRecord;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.parquet.column.Encoding;
 import org.apache.parquet.column.page.IndexPageReadStore;
+import org.apache.parquet.column.page.PageReadStore;
 import org.apache.parquet.example.data.Group;
 import org.apache.parquet.example.data.simple.SimpleGroupFactory;
 import org.apache.parquet.filter2.predicate.FilterPredicate;
@@ -56,7 +58,7 @@ public class IndexFilterTest {
   private static  Path file = new Path("target/test/TestIndexFilter/testParquetFile");
   private static final MessageType schema = parseMessageType(
       "message test { "
-          + "required int32 int32_field; "
+          + "required binary binary_field; "
           + "} ");
 
 //  private static final MessageType schema = parseMessageType(
@@ -86,7 +88,7 @@ public class IndexFilterTest {
       int index = i % ALPHABET.length();
 
       Group group = f.newGroup()
-        .append("int32_field", intValues[i % intValues.length]);
+        .append("binary_field", ALPHABET.substring(index, index+1));
 //      Group group = f.newGroup()
 //        .append("binary_field", ALPHABET.substring(index, index+1))
 //        .append("single_value_field", "sharp")
@@ -140,6 +142,9 @@ public class IndexFilterTest {
     ParquetMetadata meta = reader.getFooter();
     ccmd = meta.getBlocks().get(0).getColumns();
     indexs = reader.getIndexReader(meta.getBlocks().get(0));
+
+
+
   }
 
   @After
@@ -148,12 +153,19 @@ public class IndexFilterTest {
   }
 
   @Test
+  public void testResult() throws Exception {
+    PageReadStore pageReadStore = reader.readNextRowGroup();
+    pageReadStore.getRowCount();
+    ccmd.get(0).getValueCount();
+  }
+
+  @Test
   @SuppressWarnings("deprecation")
   public void testIndexEncodedColumns() throws Exception {
 //    Set<String> indexEncodedColumns = new HashSet<String>(Arrays.asList(
 //      "binary_field", "single_value_field", "int32_field", "int64_field",
 //      "double_field", "float_field"));
-    Set<String> indexEncodedColumns = new HashSet<String>(Arrays.asList("int32_field"));
+    Set<String> indexEncodedColumns = new HashSet<String>(Arrays.asList("binary_field"));
     for (ColumnChunkMetaData column : ccmd) {
       String name = column.getPath().toDotString();
       if (indexEncodedColumns.contains(name)) {
@@ -177,22 +189,22 @@ public class IndexFilterTest {
     }
   }
 
-//
-//  @Test
-//  public void testEqBinary() throws Exception {
-//    BinaryColumn b = binaryColumn("binary_field");
-//    FilterPredicate pred = eq(b, Binary.fromString("c"));
-//
-//    assertFalse("Should not drop block for lower case letters",
-//        canDrop(pred, ccmd, indexs));
-//
-//    assertTrue("Should drop block for upper case letters",
-//        canDrop(eq(b, Binary.fromString("A")), ccmd, dictionaries));
-//
-//    assertFalse("Should not drop block for null",
-//        canDrop(eq(b, null), ccmd, dictionaries));
-//  }
-//
+
+  @Test
+  public void testEqBinary() throws Exception {
+    BinaryColumn b = binaryColumn("binary_field");
+    FilterPredicate pred = eq(b, Binary.fromString("c"));
+
+    assertFalse("Should not drop block for lower case letters",
+        canDrop(pred, ccmd, indexs));
+
+    assertTrue("Should drop block for upper case letters",
+        canDrop(eq(b, Binary.fromString("A")), ccmd, indexs));
+
+    assertFalse("Should not drop block for null",
+        canDrop(eq(b, null), ccmd, indexs));
+  }
+
 //  @Test
 //  public void testNotEqBinary() throws Exception {
 //    BinaryColumn sharp = binaryColumn("single_value_field");
@@ -214,22 +226,22 @@ public class IndexFilterTest {
 //        canDrop(notEq(b, null), ccmd, dictionaries));
 //  }
 //
-  @Test
-  public void testLtInt() throws Exception {
-    IntColumn i32 = intColumn("int32_field");
-    int lowest = Integer.MAX_VALUE;
-    for (int value : intValues) {
-      lowest = Math.min(lowest, value);
-    }
-
-    assertTrue("Should drop: < lowest value",
-        canDrop(lt(i32, lowest), ccmd, indexs));
-    assertFalse("Should not drop: < (lowest value + 1)",
-        canDrop(lt(i32, lowest + 1), ccmd, indexs));
-
-    assertFalse("Should not drop: contains matching values",
-        canDrop(lt(i32, Integer.MAX_VALUE), ccmd, indexs));
-  }
+//  @Test
+//  public void testLtInt() throws Exception {
+//    IntColumn i32 = intColumn("int32_field");
+//    int lowest = Integer.MAX_VALUE;
+//    for (int value : intValues) {
+//      lowest = Math.min(lowest, value);
+//    }
+//
+//    assertTrue("Should drop: < lowest value",
+//        canDrop(lt(i32, lowest), ccmd, indexs));
+//    assertFalse("Should not drop: < (lowest value + 1)",
+//        canDrop(lt(i32, lowest + 1), ccmd, indexs));
+//
+//    assertFalse("Should not drop: contains matching values",
+//        canDrop(lt(i32, Integer.MAX_VALUE), ccmd, indexs));
+//  }
 //
 //  @Test
 //  public void testLtEqLong() throws Exception {

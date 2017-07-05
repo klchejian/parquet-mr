@@ -107,7 +107,7 @@ public class IndexValuesReader extends ValuesReader {
   @Override
   public int readInteger() {
     try {
-      return index.decodeToInt(decoder.readInt());
+      return decoder.readInt();
     } catch (IOException e) {
       throw new ParquetDecodingException(e);
     }

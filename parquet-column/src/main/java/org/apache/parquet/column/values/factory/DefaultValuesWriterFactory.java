@@ -24,6 +24,7 @@ import org.apache.parquet.column.ParquetProperties;
 import org.apache.parquet.column.ParquetProperties.WriterVersion;
 import org.apache.parquet.column.values.ValuesWriter;
 import org.apache.parquet.column.values.dictionary.DictionaryValuesWriter;
+import org.apache.parquet.column.values.index.BloomFilterValuesWriter;
 import org.apache.parquet.column.values.index.IndexValuesWriter;
 import org.apache.parquet.column.values.fallback.FallbackValuesWriter;
 
@@ -78,10 +79,10 @@ public class DefaultValuesWriterFactory implements ValuesWriterFactory {
 
   static IndexValuesWriter indexWriter(ColumnDescriptor path ,ParquetProperties properties, Encoding indexPageEncoding, Encoding dataPageEncoding) {
     switch (path.getType()) {
-      case INT32:
-        return new IndexValuesWriter.TestIntegerIndexValuesWriter(properties.getIndexPageSizeThreshold(),dataPageEncoding,indexPageEncoding,properties.getAllocator());
-      case BOOLEAN:
       case BINARY:
+        return new BloomFilterValuesWriter.BloomFilterBinaryValuesWriter(properties.getIndexPageSizeThreshold(),dataPageEncoding,indexPageEncoding,properties.getAllocator());
+      case BOOLEAN:
+      case INT32:
       case INT64:
       case INT96:
       case DOUBLE:

@@ -21,6 +21,7 @@ package org.apache.parquet.column.values.index;
 import org.apache.parquet.Preconditions;
 import org.apache.parquet.column.Dictionary;
 import org.apache.parquet.column.Index;
+import org.apache.parquet.column.IndexTypeName;
 import org.apache.parquet.column.page.IndexPage;
 import org.apache.parquet.column.values.plain.PlainValuesReader.DoublePlainValuesReader;
 import org.apache.parquet.column.values.plain.PlainValuesReader.FloatPlainValuesReader;
@@ -47,10 +48,10 @@ public abstract class PlainValuesIndex extends Index {
    * @throws IOException
    */
   protected PlainValuesIndex(IndexPage indexPage) throws IOException {
-    super(indexPage.getEncoding());
+    super(indexPage.getEncoding(), IndexTypeName.BLOOM_FILTER);
     if (indexPage.getEncoding() != INDEX
         && indexPage.getEncoding() != PLAIN) {
-      throw new ParquetDecodingException("Dictionary data encoding type not supported: " + indexPage.getEncoding());
+      throw new ParquetDecodingException("Index data encoding type not supported: " + indexPage.getEncoding());
     }
   }
 

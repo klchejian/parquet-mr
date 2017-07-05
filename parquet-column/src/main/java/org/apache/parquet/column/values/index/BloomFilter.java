@@ -50,14 +50,34 @@ public class BloomFilter {
 
   public static void main (String [] args){
     System.out.println("start to test BloomFilter");
-    BloomFilter bf = new BloomFilter(10,2);
-    bf.addInteger(3);
-    bf.addDouble(2);
-    long[] bitSet = bf.getBitSet();
-    System.out.println(bf.testInteger(2));
-    System.out.println(bf.testInteger(3));
-    System.out.println(bf.testDouble(2));
-    System.out.println(bf.testDouble(3));
+    BloomFilter bf = new BloomFilter(640,4);
+    int d = 97;
+    int lengh = 26;
+    for(int i = 0; i < lengh; i++) {
+      String e = String.valueOf((char)(d+i));
+      System.out.print(e + "-");
+      bf.addBinary(Binary.fromString(e));
+    }
+    System.out.println();
+
+    for(int i = -26; i < lengh; i++) {
+      String e = String.valueOf((char)(d+i));
+      System.out.print(e + "-");
+    }
+
+    System.out.println();
+
+    for(int i = -26; i < lengh; i++) {
+      String e = String.valueOf((char)(d+i));
+      int res = bf.testBinary(Binary.fromString(e)) ? 1:0;
+      System.out.print(res + "-");
+    }
+
+
+
+
+
+
   }
 
   public BloomFilter(int numBits, int numHashFunctions) {

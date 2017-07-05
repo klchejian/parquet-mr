@@ -32,7 +32,7 @@ import org.apache.parquet.column.page.DictionaryPage;
 import org.apache.parquet.column.page.IndexPage;
 import org.apache.parquet.column.values.ValuesReader;
 import org.apache.parquet.column.values.bitpacking.ByteBitPackingValuesReader;
-import org.apache.parquet.column.values.index.IndexValuesReader;
+import org.apache.parquet.column.values.index.BloomFilterIndex;
 import org.apache.parquet.column.values.index.PlainValuesIndex;
 import org.apache.parquet.column.values.rle.ZeroIntegerValuesReader;
 import org.apache.parquet.column.values.delta.DeltaBinaryPackingValuesReader;
@@ -114,13 +114,14 @@ public enum Encoding {
     public Index initIndex(ColumnDescriptor descriptor, IndexPage indexPage) throws IOException {
       switch (descriptor.getType()) {
         case INT32:
-          return new PlainValuesIndex.PlainIntegerDictionary(indexPage);
+//          return new PlainValuesIndex.PlainIntegerDictionary(indexPage);
         case FIXED_LEN_BYTE_ARRAY:
         case INT96:
         case INT64:
         case DOUBLE:
         case BINARY:
         case FLOAT:
+          return new BloomFilterIndex(indexPage);
         default:
           throw new ParquetDecodingException("Index encoding not supported for type: " + descriptor.getType());
       }
@@ -223,15 +224,23 @@ public enum Encoding {
   INDEX {
     public ValuesReader getIndexValuesReader(ColumnDescriptor descriptor, ValuesType valuesType, Index index){
       switch (descriptor.getType()) {
-        case INT32:
-          return new IndexValuesReader(index);
-        case FIXED_LEN_BYTE_ARRAY:
-        case INT96:
-        case INT64:
-        case DOUBLE:
+        case BOOLEAN:
+          return new BooleanPlainValuesReader();
+//        return new IndexValuesReader(index);
         case BINARY:
+          return new BinaryPlainValuesReader();
         case FLOAT:
-          throw new ParquetDecodingException("Dictionary encoding not supported for type: " + descriptor.getType());
+          return new FloatPlainValuesReader();
+        case DOUBLE:
+          return new DoublePlainValuesReader();
+        case INT32:
+          return new IntegerPlainValuesReader();
+        case INT64:
+          return new LongPlainValuesReader();
+        case INT96:
+          return new FixedLenByteArrayPlainValuesReader(12);
+        case FIXED_LEN_BYTE_ARRAY:
+          return new FixedLenByteArrayPlainValuesReader(descriptor.getTypeLength());
         default:
           throw new ParquetDecodingException("Dictionary encoding not supported for type: " + descriptor.getType());
       }

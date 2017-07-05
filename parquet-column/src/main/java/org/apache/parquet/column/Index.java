@@ -30,12 +30,19 @@ public abstract class Index {
 
   private final Encoding encoding;
 
-  public Index(Encoding encoding) {
+  private final IndexTypeName indexTypeName;
+
+  public Index(Encoding encoding, IndexTypeName indexTypeName) {
     this.encoding = encoding;
+    this.indexTypeName = indexTypeName;
   }
 
   public Encoding getEncoding() {
     return encoding;
+  }
+
+  public IndexTypeName getIndexTypeName() {
+    return indexTypeName;
   }
 
   public abstract int getMaxId();
