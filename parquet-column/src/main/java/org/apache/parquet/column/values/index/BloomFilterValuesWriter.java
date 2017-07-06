@@ -184,9 +184,10 @@ public abstract class BloomFilterValuesWriter extends IndexValuesWriter {
         while(binaryIterator.hasNext()) {
           encoder.writeBytes(binaryArray.get(binaryIterator.next()));
         }
-        byte[] bytesHeader = new byte[] { (byte) bitWidth };
+//        byte[] bytesHeader = new byte[] { (byte) bitWidth };
         BytesInput rleEncodeBytes = encoder.getBytes();
-        BytesInput bytes = concat(BytesInput.from(bytesHeader), rleEncodeBytes);
+//        BytesInput bytes = concat(BytesInput.from(bytesHeader), rleEncodeBytes);
+        BytesInput bytes = rleEncodeBytes;
 
         lastUsedIndexSize = binaryArray.size();
         lastUsedIndexByteSize = indexByteSize;
@@ -199,7 +200,7 @@ public abstract class BloomFilterValuesWriter extends IndexValuesWriter {
     @Override
     public IndexPage toIndexPageAndClose() {
       if(lastUsedIndexSize > 0 ) {
-        int numBits = 128;
+        int numBits = 256;
         int numHashFunctions = 4;
         BloomFilter bloomFilter = new BloomFilter(numBits,numHashFunctions);
         int bitsize = bloomFilter.getBitSet().length + 2;

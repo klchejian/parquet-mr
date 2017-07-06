@@ -31,6 +31,7 @@ import org.apache.parquet.example.data.simple.SimpleGroupFactory;
 import org.apache.parquet.filter2.predicate.FilterPredicate;
 import org.apache.parquet.filter2.predicate.Operators.*;
 import org.apache.parquet.hadoop.ParquetFileReader;
+import org.apache.parquet.hadoop.ParquetReader;
 import org.apache.parquet.hadoop.ParquetWriter;
 import org.apache.parquet.hadoop.example.ExampleParquetWriter;
 import org.apache.parquet.hadoop.example.GroupWriteSupport;
@@ -154,9 +155,7 @@ public class IndexFilterTest {
 
   @Test
   public void testResult() throws Exception {
-    PageReadStore pageReadStore = reader.readNextRowGroup();
-    pageReadStore.getRowCount();
-    ccmd.get(0).getValueCount();
+//    ParquetReader<Group> parquetReader = new ExampleParquetW
   }
 
   @Test

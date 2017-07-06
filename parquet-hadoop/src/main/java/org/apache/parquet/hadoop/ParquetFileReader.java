@@ -937,7 +937,7 @@ public class ParquetFileReader implements Closeable {
             indexPage =
               new IndexPage(
                 this.readAsBytesInput(compressedPageSize),
-                1,
+                indexHeader.getNum_values(),
                 Encoding.INDEX
               );
             break;

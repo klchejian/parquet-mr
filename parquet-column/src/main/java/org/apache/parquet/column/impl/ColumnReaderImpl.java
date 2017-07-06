@@ -1,4 +1,4 @@
-/* 
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -34,15 +34,8 @@ import org.apache.parquet.Log;
 import org.apache.parquet.VersionParser.ParsedVersion;
 import org.apache.parquet.bytes.BytesInput;
 import org.apache.parquet.bytes.BytesUtils;
-import org.apache.parquet.column.ColumnDescriptor;
-import org.apache.parquet.column.ColumnReader;
-import org.apache.parquet.column.Dictionary;
-import org.apache.parquet.column.Encoding;
-import org.apache.parquet.column.page.DataPage;
-import org.apache.parquet.column.page.DataPageV1;
-import org.apache.parquet.column.page.DataPageV2;
-import org.apache.parquet.column.page.DictionaryPage;
-import org.apache.parquet.column.page.PageReader;
+import org.apache.parquet.column.*;
+import org.apache.parquet.column.page.*;
 import org.apache.parquet.column.values.RequiresPreviousReader;
 import org.apache.parquet.column.values.ValuesReader;
 import org.apache.parquet.column.values.rle.RunLengthBitPackingHybridDecoder;
@@ -139,6 +132,7 @@ public class ColumnReaderImpl implements ColumnReader {
   private final long totalValueCount;
   private final PageReader pageReader;
   private final Dictionary dictionary;
+  private final Index index;
 
   private IntIterator repetitionLevelColumn;
   private IntIterator definitionLevelColumn;
@@ -339,7 +333,19 @@ public class ColumnReaderImpl implements ColumnReader {
     this.converter = checkNotNull(converter, "converter");
     this.writerVersion = writerVersion;
     DictionaryPage dictionaryPage = pageReader.readDictionaryPage();
-    if (dictionaryPage != null) {
+    IndexPage indexPage = pageReader.readIndexPage();
+    if(indexPage != null) {
+      this.dictionary = null;
+      try {
+        this.index = indexPage.getEncoding().initIndex(path, indexPage);
+//        if (converter.hasIndexSupport()) {
+//          converter.setIndex(index);
+//        }
+      } catch (IOException e) {
+        throw new ParquetDecodingException("could not decode the index for " + path, e);
+      }
+    } else if (dictionaryPage != null) {
+      this.index = null;
       try {
         this.dictionary = dictionaryPage.getEncoding().initDictionary(path, dictionaryPage);
         if (converter.hasDictionarySupport()) {
@@ -349,6 +355,7 @@ public class ColumnReaderImpl implements ColumnReader {
         throw new ParquetDecodingException("could not decode the dictionary for " + path, e);
       }
     } else {
+      this.index = null;
       this.dictionary = null;
     }
     this.totalValueCount = pageReader.getTotalValueCount();

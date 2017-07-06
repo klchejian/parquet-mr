@@ -178,6 +178,7 @@ public abstract class DictionaryValuesWriter extends ValuesWriter implements Req
       BytesInput bytes = concat(BytesInput.from(bytesHeader), rleEncodedBytes);
       // remember size of dictionary when we last wrote a page
       lastUsedDictionarySize = getDictionarySize();
+
       lastUsedDictionaryByteSize = dictionaryByteSize;
       return bytes;
     } catch (IOException e) {

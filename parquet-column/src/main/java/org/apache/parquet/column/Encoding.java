@@ -222,7 +222,9 @@ public enum Encoding {
   },
 
   INDEX {
-    public ValuesReader getIndexValuesReader(ColumnDescriptor descriptor, ValuesType valuesType, Index index){
+
+    @Override
+    public ValuesReader getValuesReader(ColumnDescriptor descriptor, ValuesType valuesType) {
       switch (descriptor.getType()) {
         case BOOLEAN:
           return new BooleanPlainValuesReader();
