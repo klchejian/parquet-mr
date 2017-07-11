@@ -1,4 +1,4 @@
-/* 
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -26,6 +26,7 @@ import org.apache.parquet.filter2.compat.FilterCompat.Filter;
 import org.apache.parquet.filter2.compat.FilterCompat.NoOpFilter;
 import org.apache.parquet.filter2.compat.FilterCompat.Visitor;
 import org.apache.parquet.filter2.dictionarylevel.DictionaryFilter;
+import org.apache.parquet.filter2.indexlevel.IndexFilter;
 import org.apache.parquet.filter2.predicate.FilterPredicate;
 import org.apache.parquet.filter2.predicate.SchemaCompatibilityValidator;
 import org.apache.parquet.filter2.statisticslevel.StatisticsFilter;
@@ -48,7 +49,8 @@ public class RowGroupFilter implements Visitor<List<BlockMetaData>> {
 
   public enum FilterLevel {
     STATISTICS,
-    DICTIONARY
+    DICTIONARY,
+    INDEX
   }
 
   public static List<BlockMetaData> filterRowGroups(Filter filter, List<BlockMetaData> blocks, MessageType schema) {
@@ -94,6 +96,10 @@ public class RowGroupFilter implements Visitor<List<BlockMetaData>> {
 
       if(!drop && levels.contains(FilterLevel.DICTIONARY)) {
         drop = DictionaryFilter.canDrop(filterPredicate, block.getColumns(), reader.getDictionaryReader(block));
+      }
+
+      if(!drop && levels.contains(FilterLevel.INDEX)) {
+        drop = IndexFilter.canDrop(filterPredicate, block.getColumns(), reader.getIndexReader(block));
       }
 
       if(!drop) {

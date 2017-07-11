@@ -133,6 +133,7 @@ public abstract class DictionaryValuesWriter extends ValuesWriter implements Req
   @Override
   public void fallBackAllValuesTo(ValuesWriter writer) {
     fallBackDictionaryEncodedData(writer);
+
     if (lastUsedDictionarySize == 0) {
       // if we never used the dictionary
       // we free dictionary encoded data

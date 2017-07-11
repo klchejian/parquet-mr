@@ -21,16 +21,14 @@ package org.apache.parquet.hadoop;
 import static org.apache.parquet.Log.DEBUG;
 import static org.apache.parquet.bytes.BytesUtils.readIntLittleEndian;
 import static org.apache.parquet.filter2.compat.RowGroupFilter.FilterLevel.DICTIONARY;
+import static org.apache.parquet.filter2.compat.RowGroupFilter.FilterLevel.INDEX;
 import static org.apache.parquet.filter2.compat.RowGroupFilter.FilterLevel.STATISTICS;
 import static org.apache.parquet.format.converter.ParquetMetadataConverter.NO_FILTER;
 import static org.apache.parquet.format.converter.ParquetMetadataConverter.SKIP_ROW_GROUPS;
 import static org.apache.parquet.hadoop.ParquetFileWriter.MAGIC;
 import static org.apache.parquet.hadoop.ParquetFileWriter.PARQUET_COMMON_METADATA_FILE;
 import static org.apache.parquet.hadoop.ParquetFileWriter.PARQUET_METADATA_FILE;
-import static org.apache.parquet.hadoop.ParquetInputFormat.DICTIONARY_FILTERING_ENABLED;
-import static org.apache.parquet.hadoop.ParquetInputFormat.DICTIONARY_FILTERING_ENABLED_DEFAULT;
-import static org.apache.parquet.hadoop.ParquetInputFormat.STATS_FILTERING_ENABLED;
-import static org.apache.parquet.hadoop.ParquetInputFormat.STATS_FILTERING_ENABLED_DEFAULT;
+import static org.apache.parquet.hadoop.ParquetInputFormat.*;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -658,6 +656,11 @@ public class ParquetFileReader implements Closeable {
     if (conf.getBoolean(
         DICTIONARY_FILTERING_ENABLED, DICTIONARY_FILTERING_ENABLED_DEFAULT)) {
       levels.add(DICTIONARY);
+    }
+
+    if (conf.getBoolean(
+        INDEX_FILTERING_ENABLED, INDEX_FILTERING_ENABLED_DEFAULT)) {
+      levels.add(INDEX);
     }
 
     this.blocks = RowGroupFilter.filterRowGroups(levels, filter, blocks, this);

@@ -57,22 +57,22 @@ public class IndexFilterTest {
   private static final int nElements = 1000;
   private static final Configuration conf = new Configuration();
   private static  Path file = new Path("target/test/TestIndexFilter/testParquetFile");
-  private static final MessageType schema = parseMessageType(
-      "message test { "
-          + "required binary binary_field; "
-          + "} ");
-
 //  private static final MessageType schema = parseMessageType(
-//    "message test { "
-//      + "required binary binary_field; "
-//      + "required binary single_value_field; "
-//      + "required int32 int32_field; "
-//      + "required int64 int64_field; "
-//      + "required double double_field; "
-//      + "required float float_field; "
-//      + "required int32 plain_int32_field; "
-//      + "required binary fallback_binary_field; "
-//      + "} ");
+//      "message test { "
+//          + "required binary binary_field; "
+//          + "} ");
+
+  private static final MessageType schema = parseMessageType(
+    "message test { "
+      + "required binary binary_field; "
+      + "required binary single_value_field; "
+      + "required int32 int32_field; "
+      + "required int64 int64_field; "
+      + "required double double_field; "
+      + "required float float_field; "
+      + "required int32 plain_int32_field; "
+      + "required binary fallback_binary_field; "
+      + "} ");
 
   private static final String ALPHABET = "abcdefghijklmnopqrstuvwxyz";
   private static final int[] intValues = new int[] {
@@ -88,18 +88,18 @@ public class IndexFilterTest {
     for (int i = 0; i < nElements; i++) {
       int index = i % ALPHABET.length();
 
+//      Group group = f.newGroup().append("binary_field", ALPHABET.substring(index, index+1));
+
       Group group = f.newGroup()
-        .append("binary_field", ALPHABET.substring(index, index+1));
-//      Group group = f.newGroup()
-//        .append("binary_field", ALPHABET.substring(index, index+1))
-//        .append("single_value_field", "sharp")
-//        .append("int32_field", intValues[i % intValues.length])
-//        .append("int64_field", longValues[i % longValues.length])
-//        .append("double_field", toDouble(intValues[i % intValues.length]))
-//        .append("float_field", toFloat(intValues[i % intValues.length]))
-//        .append("plain_int32_field", i)
-//        .append("fallback_binary_field", i < (nElements / 2) ?
-//          ALPHABET.substring(index, index+1) : UUID.randomUUID().toString());
+        .append("binary_field", ALPHABET.substring(index, index+1))
+        .append("single_value_field", "sharp")
+        .append("int32_field", intValues[i % intValues.length])
+        .append("int64_field", longValues[i % longValues.length])
+        .append("double_field", toDouble(intValues[i % intValues.length]))
+        .append("float_field", toFloat(intValues[i % intValues.length]))
+        .append("plain_int32_field", i)
+        .append("fallback_binary_field", i < (nElements / 2) ?
+          ALPHABET.substring(index, index+1) : UUID.randomUUID().toString());
 
       writer.write(group);
     }
@@ -161,10 +161,10 @@ public class IndexFilterTest {
   @Test
   @SuppressWarnings("deprecation")
   public void testIndexEncodedColumns() throws Exception {
-//    Set<String> indexEncodedColumns = new HashSet<String>(Arrays.asList(
-//      "binary_field", "single_value_field", "int32_field", "int64_field",
-//      "double_field", "float_field"));
-    Set<String> indexEncodedColumns = new HashSet<String>(Arrays.asList("binary_field"));
+    Set<String> indexEncodedColumns = new HashSet<String>(Arrays.asList(
+      "binary_field", "single_value_field", "int32_field", "int64_field",
+      "double_field", "float_field"));
+//    Set<String> indexEncodedColumns = new HashSet<String>(Arrays.asList("binary_field"));
     for (ColumnChunkMetaData column : ccmd) {
       String name = column.getPath().toDotString();
       if (indexEncodedColumns.contains(name)) {
@@ -204,139 +204,139 @@ public class IndexFilterTest {
         canDrop(eq(b, null), ccmd, indexs));
   }
 
-//  @Test
-//  public void testNotEqBinary() throws Exception {
-//    BinaryColumn sharp = binaryColumn("single_value_field");
-//    BinaryColumn b = binaryColumn("binary_field");
-//
-//    assertTrue("Should drop block with only the excluded value",
-//        canDrop(notEq(sharp, Binary.fromString("sharp")), ccmd, dictionaries));
-//
-//    assertFalse("Should not drop block with any other value",
-//        canDrop(notEq(sharp, Binary.fromString("applause")), ccmd, dictionaries));
-//
-//    assertFalse("Should not drop block with a known value",
-//        canDrop(notEq(b, Binary.fromString("x")), ccmd, dictionaries));
-//
-//    assertFalse("Should not drop block with a known value",
-//        canDrop(notEq(b, Binary.fromString("B")), ccmd, dictionaries));
-//
-//    assertFalse("Should not drop block for null",
-//        canDrop(notEq(b, null), ccmd, dictionaries));
-//  }
-//
-//  @Test
-//  public void testLtInt() throws Exception {
-//    IntColumn i32 = intColumn("int32_field");
-//    int lowest = Integer.MAX_VALUE;
-//    for (int value : intValues) {
-//      lowest = Math.min(lowest, value);
-//    }
-//
-//    assertTrue("Should drop: < lowest value",
-//        canDrop(lt(i32, lowest), ccmd, indexs));
-//    assertFalse("Should not drop: < (lowest value + 1)",
-//        canDrop(lt(i32, lowest + 1), ccmd, indexs));
-//
+  @Test
+  public void testNotEqBinary() throws Exception {
+    BinaryColumn sharp = binaryColumn("single_value_field");
+    BinaryColumn b = binaryColumn("binary_field");
+
+    assertTrue("Should drop block with only the excluded value",
+        canDrop(notEq(sharp, Binary.fromString("sharp")), ccmd, indexs));
+
+    assertFalse("Should not drop block with any other value",
+        canDrop(notEq(sharp, Binary.fromString("applause")), ccmd, indexs));
+
+    assertFalse("Should not drop block with a known value",
+        canDrop(notEq(b, Binary.fromString("x")), ccmd, indexs));
+
+    assertFalse("Should not drop block with a known value",
+        canDrop(notEq(b, Binary.fromString("B")), ccmd, indexs));
+
+    assertFalse("Should not drop block for null",
+        canDrop(notEq(b, null), ccmd, indexs));
+  }
+
+  @Test
+  public void testLtInt() throws Exception {
+    IntColumn i32 = intColumn("int32_field");
+    int lowest = Integer.MAX_VALUE;
+    for (int value : intValues) {
+      lowest = Math.min(lowest, value);
+    }
+
+    assertTrue("Should drop: < lowest value",
+        canDrop(lt(i32, lowest), ccmd, indexs));
+    assertFalse("Should not drop: < (lowest value + 1)",
+        canDrop(lt(i32, lowest + 1), ccmd, indexs));
+
+    assertFalse("Should not drop: contains matching values",
+        canDrop(lt(i32, Integer.MAX_VALUE), ccmd, indexs));
+  }
+
+  @Test
+  public void testLtEqLong() throws Exception {
+    LongColumn i64 = longColumn("int64_field");
+    long lowest = Long.MAX_VALUE;
+    for (long value : longValues) {
+      lowest = Math.min(lowest, value);
+    }
+
+    assertTrue("Should drop: <= lowest - 1",
+        canDrop(ltEq(i64, lowest - 1), ccmd, indexs));
+    assertFalse("Should not drop: <= lowest",
+        canDrop(ltEq(i64, lowest), ccmd, indexs));
+
+    assertFalse("Should not drop: contains matching values",
+        canDrop(ltEq(i64, Long.MAX_VALUE), ccmd, indexs));
+  }
+
+  @Test
+  public void testGtFloat() throws Exception {
+    FloatColumn f = floatColumn("float_field");
+    float highest = Float.MIN_VALUE;
+    for (int value : intValues)
+
+
+
+    assertTrue("Should drop: > highest value",
+        canDrop(gt(f, highest), ccmd, indexs));
+    assertFalse("Should not drop: > (highest value - 1.0)",
+        canDrop(gt(f, highest - 1.0f), ccmd, indexs));
+
+    assertFalse("Should not drop: contains matching values",
+        canDrop(gt(f, Float.MIN_VALUE), ccmd, indexs));
+  }
+
+  @Test
+  public void testGtEqDouble() throws Exception {
+    DoubleColumn d = doubleColumn("double_field");
+    double highest = Double.MIN_VALUE;
+    for (int value : intValues) {
+      highest = Math.max(highest, toDouble(value));
+    }
+
+    assertTrue("Should drop: >= highest + 0.00000001",
+        canDrop(gtEq(d, highest + 0.00000001), ccmd, indexs));
+    assertFalse("Should not drop: >= highest",
+        canDrop(gtEq(d, highest), ccmd, indexs));
+
 //    assertFalse("Should not drop: contains matching values",
-//        canDrop(lt(i32, Integer.MAX_VALUE), ccmd, indexs));
-//  }
-//
-//  @Test
-//  public void testLtEqLong() throws Exception {
-//    LongColumn i64 = longColumn("int64_field");
-//    long lowest = Long.MAX_VALUE;
-//    for (long value : longValues) {
-//      lowest = Math.min(lowest, value);
-//    }
-//
-//    assertTrue("Should drop: <= lowest - 1",
-//        canDrop(ltEq(i64, lowest - 1), ccmd, dictionaries));
-//    assertFalse("Should not drop: <= lowest",
-//        canDrop(ltEq(i64, lowest), ccmd, dictionaries));
-//
-//    assertFalse("Should not drop: contains matching values",
-//        canDrop(ltEq(i64, Long.MAX_VALUE), ccmd, dictionaries));
-//  }
-//
-//  @Test
-//  public void testGtFloat() throws Exception {
-//    FloatColumn f = floatColumn("float_field");
-//    float highest = Float.MIN_VALUE;
-//    for (int value : intValues) {
-//      highest = Math.max(highest, toFloat(value));
-//    }
-//
-//    assertTrue("Should drop: > highest value",
-//        canDrop(gt(f, highest), ccmd, dictionaries));
-//    assertFalse("Should not drop: > (highest value - 1.0)",
-//        canDrop(gt(f, highest - 1.0f), ccmd, dictionaries));
-//
-//    assertFalse("Should not drop: contains matching values",
-//        canDrop(gt(f, Float.MIN_VALUE), ccmd, dictionaries));
-//  }
-//
-//  @Test
-//  public void testGtEqDouble() throws Exception {
-//    DoubleColumn d = doubleColumn("double_field");
-//    double highest = Double.MIN_VALUE;
-//    for (int value : intValues) {
-//      highest = Math.max(highest, toDouble(value));
-//    }
-//
-//    assertTrue("Should drop: >= highest + 0.00000001",
-//        canDrop(gtEq(d, highest + 0.00000001), ccmd, dictionaries));
-//    assertFalse("Should not drop: >= highest",
-//        canDrop(gtEq(d, highest), ccmd, dictionaries));
-//
-//    assertFalse("Should not drop: contains matching values",
-//        canDrop(gtEq(d, Double.MIN_VALUE), ccmd, dictionaries));
-//  }
-//
-//  @Test
-//  public void testAnd() throws Exception {
-//    BinaryColumn col = binaryColumn("binary_field");
-//
-//    // both evaluate to false (no upper-case letters are in the index)
-//    FilterPredicate B = eq(col, Binary.fromString("B"));
-//    FilterPredicate C = eq(col, Binary.fromString("C"));
-//
-//    // both evaluate to true (all lower-case letters are in the index)
-//    FilterPredicate x = eq(col, Binary.fromString("x"));
-//    FilterPredicate y = eq(col, Binary.fromString("y"));
-//
-//    assertTrue("Should drop when either predicate must be false",
-//        canDrop(and(B, y), ccmd, indexs));
-//    assertTrue("Should drop when either predicate must be false",
-//        canDrop(and(x, C), ccmd, indexs));
-//    assertTrue("Should drop when either predicate must be false",
-//        canDrop(and(B, C), ccmd, indexs));
-//    assertFalse("Should not drop when either predicate could be true",
-//        canDrop(and(x, y), ccmd, indexs));
-//  }
-//
-//  @Test
-//  public void testOr() throws Exception {
-//    BinaryColumn col = binaryColumn("binary_field");
-//
-//    // both evaluate to false (no upper-case letters are in the dictioindexnary)
-//    FilterPredicate B = eq(col, Binary.fromString("B"));
-//    FilterPredicate C = eq(col, Binary.fromString("C"));
-//
-//    // both evaluate to true (all lower-case letters are in the index)
-//    FilterPredicate x = eq(col, Binary.fromString("x"));
-//    FilterPredicate y = eq(col, Binary.fromString("y"));
-//
-//    assertFalse("Should not drop when one predicate could be true",
-//        canDrop(or(B, y), ccmd, dictionaries));
-//    assertFalse("Should not drop when one predicate could be true",
-//        canDrop(or(x, C), ccmd, dictionaries));
-//    assertTrue("Should drop when both predicates must be false",
-//        canDrop(or(B, C), ccmd, dictionaries));
-//    assertFalse("Should not drop when one predicate could be true",
-//        canDrop(or(x, y), ccmd, dictionaries));
-//  }
-//
+//        canDrop(gtEq(d, Double.MIN_VALUE), ccmd, indexs));
+  }
+
+  @Test
+  public void testAnd() throws Exception {
+    BinaryColumn col = binaryColumn("binary_field");
+
+    // both evaluate to false (no upper-case letters are in the index)
+    FilterPredicate B = eq(col, Binary.fromString("B"));
+    FilterPredicate C = eq(col, Binary.fromString("C"));
+
+    // both evaluate to true (all lower-case letters are in the index)
+    FilterPredicate x = eq(col, Binary.fromString("x"));
+    FilterPredicate y = eq(col, Binary.fromString("y"));
+
+    assertTrue("Should drop when either predicate must be false",
+        canDrop(and(B, y), ccmd, indexs));
+    assertTrue("Should drop when either predicate must be false",
+        canDrop(and(x, C), ccmd, indexs));
+    assertTrue("Should drop when either predicate must be false",
+        canDrop(and(B, C), ccmd, indexs));
+    assertFalse("Should not drop when either predicate could be true",
+        canDrop(and(x, y), ccmd, indexs));
+  }
+
+  @Test
+  public void testOr() throws Exception {
+    BinaryColumn col = binaryColumn("binary_field");
+
+    // both evaluate to false (no upper-case letters are in the dictioindexnary)
+    FilterPredicate B = eq(col, Binary.fromString("B"));
+    FilterPredicate C = eq(col, Binary.fromString("C"));
+
+    // both evaluate to true (all lower-case letters are in the index)
+    FilterPredicate x = eq(col, Binary.fromString("x"));
+    FilterPredicate y = eq(col, Binary.fromString("y"));
+
+    assertFalse("Should not drop when one predicate could be true",
+        canDrop(or(B, y), ccmd, indexs));
+    assertFalse("Should not drop when one predicate could be true",
+        canDrop(or(x, C), ccmd, indexs));
+    assertTrue("Should drop when both predicates must be false",
+        canDrop(or(B, C), ccmd, indexs));
+    assertFalse("Should not drop when one predicate could be true",
+        canDrop(or(x, y), ccmd, indexs));
+  }
+
 //  @Test
 //  public void testColumnWithoutIndex() throws Exception {
 //    IntColumn plain = intColumn("plain_int32_field");

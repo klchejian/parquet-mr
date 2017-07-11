@@ -165,6 +165,8 @@ public class ParquetRecordReader<T> extends RecordReader<Void, T> {
 
     if (rowGroupOffsets != null) {
       // verify a row group was found for each offset
+//      List<BlockMetaData> blocks = reader.getFooter().getBlocks();
+
       List<BlockMetaData> blocks = reader.getFooter().getBlocks();
       if (blocks.size() != rowGroupOffsets.length) {
         throw new IllegalStateException(
@@ -173,6 +175,8 @@ public class ParquetRecordReader<T> extends RecordReader<Void, T> {
             + " found: " + blocks);
       }
 
+
+      reader.filterRowGroups(getFilter(configuration));
     } else {
       // apply data filters
       reader.filterRowGroups(getFilter(configuration));

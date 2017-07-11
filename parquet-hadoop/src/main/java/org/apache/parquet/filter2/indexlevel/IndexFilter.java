@@ -138,6 +138,9 @@ public class IndexFilter implements FilterPredicate.Visitor<Boolean> {
 
     try {
       long[] indexByte = expandIndex(meta);
+      if (indexByte == null) {
+        return BLOCK_MIGHT_MATCH;
+      }
 
       BloomFilter bloomFilter = new BloomFilter((int)indexByte[0], (int)indexByte[1]);
       bloomFilter.setBitSet(Arrays.copyOfRange(indexByte, 2,indexByte.length));
@@ -188,14 +191,26 @@ public class IndexFilter implements FilterPredicate.Visitor<Boolean> {
       return BLOCK_MIGHT_MATCH;
     }
 
-//    try {
-//      Set<T> dictSet = expandIndex(meta);
-//      if (dictSet != null && dictSet.size() == 1 && dictSet.contains(value)) {
-//        return BLOCK_CANNOT_MATCH;
-//      }
-//    } catch (IOException e) {
-//      LOG.warn("Failed to process index for filter evaluation.", e);
-//    }
+    try {
+      long[] indexByte = expandIndex(meta);
+      if (indexByte == null) {
+        return BLOCK_MIGHT_MATCH;
+      }
+
+      BloomFilter bloomFilter = new BloomFilter((int)indexByte[0], (int)indexByte[1]);
+      bloomFilter.setBitSet(Arrays.copyOfRange(indexByte, 2,indexByte.length));
+      switch(meta.getType()) {
+        case BINARY: return !bloomFilter.testBinary((Binary) value);
+        case INT32: return !bloomFilter.testInteger((Integer) value);
+        case INT64: return !bloomFilter.testLong((Long) value);
+        case FLOAT: return !bloomFilter.testFloat((Float) value);
+        case DOUBLE: return !bloomFilter.testDouble((Double) value);
+        default:
+          LOG.warn("Unknown data type" + meta.getType());
+      }
+    } catch (IOException e) {
+      LOG.warn("Failed to process index for filter evaluation.", e);
+    }
 
     return BLOCK_MIGHT_MATCH;
   }
@@ -242,7 +257,6 @@ public class IndexFilter implements FilterPredicate.Visitor<Boolean> {
 //        }
 //      }
 
-      return BLOCK_CANNOT_MATCH;
     } catch (IOException e) {
       LOG.warn("Failed to process index for filter evaluation.", e);
     }
@@ -271,22 +285,26 @@ public class IndexFilter implements FilterPredicate.Visitor<Boolean> {
 
     filterColumn.getColumnPath();
 
-//    try {
-//      Set<T> dictSet = expandIndex(meta);
-//      if (dictSet == null) {
-//        return BLOCK_MIGHT_MATCH;
-//      }
-//
-//      for(T entry : dictSet) {
-//        if(value.compareTo(entry) >= 0) {
-//          return BLOCK_MIGHT_MATCH;
-//        }
-//      }
-//
-//      return BLOCK_CANNOT_MATCH;
-//    } catch (IOException e) {
-//      LOG.warn("Failed to process index for filter evaluation.", e);
-//    }
+    try {
+      long[] indexByte = expandIndex(meta);
+      if (indexByte == null) {
+        return BLOCK_MIGHT_MATCH;
+      }
+
+      BloomFilter bloomFilter = new BloomFilter((int)indexByte[0], (int)indexByte[1]);
+      bloomFilter.setBitSet(Arrays.copyOfRange(indexByte, 2,indexByte.length));
+      switch(meta.getType()) {
+        case BINARY: return !bloomFilter.testBinary((Binary) value);
+        case INT32: return !bloomFilter.testInteger((Integer) value);
+        case INT64: return !bloomFilter.testLong((Long) value);
+        case FLOAT: return !bloomFilter.testFloat((Float) value);
+        case DOUBLE: return !bloomFilter.testDouble((Double) value);
+        default:
+          LOG.warn("Unknown data type" + meta.getType());
+      }
+    } catch (IOException e) {
+      LOG.warn("Failed to process index for filter evaluation.", e);
+    }
 
     return BLOCK_MIGHT_MATCH;
   }
@@ -310,22 +328,26 @@ public class IndexFilter implements FilterPredicate.Visitor<Boolean> {
 
     T value = gt.getValue();
 
-//    try {
-//      Set<T> dictSet = expandIndex(meta);
-//      if (dictSet == null) {
-//        return BLOCK_MIGHT_MATCH;
-//      }
-//
-//      for(T entry : dictSet) {
-//        if(value.compareTo(entry) < 0) {
-//          return BLOCK_MIGHT_MATCH;
-//        }
-//      }
-//
-//      return BLOCK_CANNOT_MATCH;
-//    } catch (IOException e) {
-//      LOG.warn("Failed to process index for filter evaluation.", e);
-//    }
+    try {
+      long[] indexByte = expandIndex(meta);
+      if (indexByte == null) {
+        return BLOCK_MIGHT_MATCH;
+      }
+
+      BloomFilter bloomFilter = new BloomFilter((int)indexByte[0], (int)indexByte[1]);
+      bloomFilter.setBitSet(Arrays.copyOfRange(indexByte, 2,indexByte.length-1));
+      switch(meta.getType()) {
+        case BINARY: return !bloomFilter.testBinary((Binary) value);
+        case INT32: return !bloomFilter.testInteger((Integer) value);
+        case INT64: return !bloomFilter.testLong((Long) value);
+        case FLOAT: return !bloomFilter.testFloat((Float) value);
+        case DOUBLE: return !bloomFilter.testDouble((Double) value);
+        default:
+          LOG.warn("Unknown data type" + meta.getType());
+      }
+    } catch (IOException e) {
+      LOG.warn("Failed to process index for filter evaluation.", e);
+    }
 
     return BLOCK_MIGHT_MATCH;
   }
@@ -351,22 +373,26 @@ public class IndexFilter implements FilterPredicate.Visitor<Boolean> {
 
     filterColumn.getColumnPath();
 
-//    try {
-//      Set<T> dictSet = expandIndex(meta);
-//      if (dictSet == null) {
-//        return BLOCK_MIGHT_MATCH;
-//      }
-//
-//      for(T entry : dictSet) {
-//        if(value.compareTo(entry) <= 0) {
-//          return BLOCK_MIGHT_MATCH;
-//        }
-//      }
-//
-//      return BLOCK_CANNOT_MATCH;
-//    } catch (IOException e) {
-//      LOG.warn("Failed to process index for filter evaluation.", e);
-//    }
+    try {
+      long[] indexByte = expandIndex(meta);
+      if (indexByte == null) {
+        return BLOCK_MIGHT_MATCH;
+      }
+
+      BloomFilter bloomFilter = new BloomFilter((int)indexByte[0], (int)indexByte[1]);
+      bloomFilter.setBitSet(Arrays.copyOfRange(indexByte, 2,indexByte.length));
+      switch(meta.getType()) {
+        case BINARY: return !bloomFilter.testBinary((Binary) value);
+        case INT32: return !bloomFilter.testInteger((Integer) value);
+        case INT64: return !bloomFilter.testLong((Long) value);
+        case FLOAT: return !bloomFilter.testFloat((Float) value);
+        case DOUBLE: return !bloomFilter.testDouble((Double) value);
+        default:
+          LOG.warn("Unknown data type" + meta.getType());
+      }
+    } catch (IOException e) {
+      LOG.warn("Failed to process index for filter evaluation.", e);
+    }
 
     return BLOCK_MIGHT_MATCH;
   }

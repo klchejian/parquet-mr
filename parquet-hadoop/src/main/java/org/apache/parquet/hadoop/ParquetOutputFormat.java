@@ -1,4 +1,4 @@
-/* 
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -136,6 +136,8 @@ public class ParquetOutputFormat<T> extends FileOutputFormat<Void, T> {
   public static final String WRITE_SUPPORT_CLASS  = "parquet.write.support.class";
   public static final String DICTIONARY_PAGE_SIZE = "parquet.dictionary.page.size";
   public static final String ENABLE_DICTIONARY    = "parquet.enable.dictionary";
+  public static final String INDEX_PAGE_SIZE      = "parquet.index.page.size";
+  public static final String ENABLE_INDEX         = "parquet.enable.index";
   public static final String VALIDATION           = "parquet.validation";
   public static final String WRITER_VERSION       = "parquet.writer.version";
   public static final String MEMORY_POOL_RATIO    = "parquet.memory.pool.ratio";
@@ -245,6 +247,11 @@ public class ParquetOutputFormat<T> extends FileOutputFormat<Void, T> {
         ENABLE_DICTIONARY, ParquetProperties.DEFAULT_IS_DICTIONARY_ENABLED);
   }
 
+  public static boolean getEnableIndex(Configuration configuration) {
+    return configuration.getBoolean(
+      ENABLE_INDEX, ParquetProperties.DEFAULT_IS_INDEX_ENABLED);
+  }
+
   public static int getMinRowCountForPageSizeCheck(Configuration configuration) {
     return configuration.getInt(MIN_ROW_COUNT_FOR_PAGE_SIZE_CHECK,
         ParquetProperties.DEFAULT_MINIMUM_RECORD_COUNT_FOR_CHECK);
@@ -276,6 +283,11 @@ public class ParquetOutputFormat<T> extends FileOutputFormat<Void, T> {
   public static int getDictionaryPageSize(Configuration configuration) {
     return configuration.getInt(
         DICTIONARY_PAGE_SIZE, ParquetProperties.DEFAULT_DICTIONARY_PAGE_SIZE);
+  }
+
+  public static int getIndexPageSize(Configuration configuration) {
+    return configuration.getInt(
+      INDEX_PAGE_SIZE, ParquetProperties.DEFAULT_INDEX_PAGE_SIZE);
   }
 
   public static WriterVersion getWriterVersion(Configuration configuration) {
@@ -363,6 +375,8 @@ public class ParquetOutputFormat<T> extends FileOutputFormat<Void, T> {
         .withPageSize(getPageSize(conf))
         .withDictionaryPageSize(getDictionaryPageSize(conf))
         .withDictionaryEncoding(getEnableDictionary(conf))
+        .withIndexPageSize(getIndexPageSize(conf))
+        .withIndexEncoding(getEnableIndex(conf))
         .withWriterVersion(getWriterVersion(conf))
         .estimateRowCountForPageSizeCheck(getEstimatePageSizeCheck(conf))
         .withMinRowCountForPageSizeCheck(getMinRowCountForPageSizeCheck(conf))

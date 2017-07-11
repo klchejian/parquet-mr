@@ -82,13 +82,19 @@ public class DefaultValuesWriterFactory implements ValuesWriterFactory {
       case BINARY:
         return new BloomFilterValuesWriter.BloomFilterBinaryValuesWriter(properties.getIndexPageSizeThreshold(),dataPageEncoding,indexPageEncoding,properties.getAllocator());
       case BOOLEAN:
+        throw new IllegalArgumentException("no index encoding for " + path.getType());
       case INT32:
+        return new BloomFilterValuesWriter.BloomFilterIntegerValuesWriter(properties.getIndexPageSizeThreshold(), dataPageEncoding, indexPageEncoding, properties.getAllocator());
       case INT64:
+        return new BloomFilterValuesWriter.BloomFilterLongValuesWriter(properties.getIndexPageSizeThreshold(), dataPageEncoding, indexPageEncoding, properties.getAllocator());
       case INT96:
+        return new BloomFilterValuesWriter.BloomFilterBinaryValuesWriter(properties.getIndexPageSizeThreshold(),dataPageEncoding,indexPageEncoding,properties.getAllocator());
       case DOUBLE:
+        return new BloomFilterValuesWriter.BloomFilterDoubleValuesWriter(properties.getIndexPageSizeThreshold(), dataPageEncoding, indexPageEncoding, properties.getAllocator());
       case FLOAT:
+        return new BloomFilterValuesWriter.BloomFilterFloatValuesWriter(properties.getIndexPageSizeThreshold(), dataPageEncoding, indexPageEncoding, properties.getAllocator());
       case FIXED_LEN_BYTE_ARRAY:
-        throw new IllegalArgumentException("no dictionary encoding for " + path.getType());
+        return new BloomFilterValuesWriter.BloomFilterBinaryValuesWriter(properties.getIndexPageSizeThreshold(),dataPageEncoding,indexPageEncoding,properties.getAllocator());
       default:
         throw new IllegalArgumentException("Unknown type " + path.getType());
     }
