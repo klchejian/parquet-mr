@@ -34,6 +34,8 @@ import org.apache.parquet.column.values.plain.PlainValuesWriter;
 import org.apache.parquet.column.values.rle.RunLengthBitPackingHybridEncoder;
 import org.apache.parquet.io.ParquetEncodingException;
 import org.apache.parquet.io.api.Binary;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.*;
@@ -46,6 +48,8 @@ import static org.apache.parquet.bytes.BytesInput.concat;
  *
  */
 public abstract class BloomFilterValuesWriter extends IndexValuesWriter {
+
+  public Logger logger = LoggerFactory.getLogger(this.getClass());
 
   private static final int MIN_INITIAL_SLAB_SIZE = 64;
   /**
@@ -62,6 +66,23 @@ public abstract class BloomFilterValuesWriter extends IndexValuesWriter {
   protected ArrayList<Integer> numIndex = new ArrayList<>();
   protected List<PlainValuesWriter> encoders = new ArrayList<>();
 
+  @Override
+  public void reset() {
+    close();
+//    values = new HashSet<>();
+    numIndex = new ArrayList<>();
+    dataByteSize = 0;
+  }
+
+  @Override
+  public void close() {
+    numIndex = null;
+    for (PlainValuesWriter encoder : encoders) {
+      encoder.close();
+    }
+    encoders.clear();
+  }
+
   protected int getNumBits(int n, double p) {
     return 256;
   }
@@ -72,7 +93,7 @@ public abstract class BloomFilterValuesWriter extends IndexValuesWriter {
 
   @Override
   public long getBufferedSize() {
-    return indexByteSize;
+    return dataByteSize;
   }
 
   @Override
@@ -203,28 +224,33 @@ public abstract class BloomFilterValuesWriter extends IndexValuesWriter {
         indexByteSize += v.length();
       }
       numIndex.add(indexNum);
+      dataByteSize += v.length();
 
       System.out.println("----------binaryArraySize" + binaryArray.size() + "binary len:"+ v.length() + "(binary)----------");
     }
 
     @Override
     public BytesInput getBytes() {
-      PlainValuesWriter encoder = new PlainValuesWriter(indexByteSize,maxIndexByteSize, this.allocator);
-      encoders.add(encoder);
+      if (dataByteSize > 0) {
+        logger.info("--------che-------------indexBytesize" + dataByteSize + "maxIndexBYteSize" + maxIndexByteSize);
+        PlainValuesWriter encoder = new PlainValuesWriter(dataByteSize, maxIndexByteSize, this.allocator);
+        encoders.add(encoder);
 
-      Iterator<Integer> indexIterator = numIndex.iterator();
-      try {
-        while(indexIterator.hasNext()) {
-          encoder.writeBytes(binaryArray.get(indexIterator.next()));
+        Iterator<Integer> indexIterator = numIndex.iterator();
+        try {
+          while (indexIterator.hasNext()) {
+            encoder.writeBytes(binaryArray.get(indexIterator.next()));
+          }
+          BytesInput bytes = encoder.getBytes();
+
+          lastUsedIndexSize = binaryArray.size();
+          lastUsedIndexByteSize = indexByteSize;
+          return bytes;
+        } catch (Exception e) {
+          throw new ParquetEncodingException("could not encode the values", e);
         }
-        BytesInput bytes = encoder.getBytes();
-
-        lastUsedIndexSize = binaryArray.size();
-        lastUsedIndexByteSize = indexByteSize;
-        return bytes;
-      } catch (Exception e) {
-        throw new ParquetEncodingException("could not encode the values", e);
       }
+      return null;
     }
 
     @Override
@@ -273,28 +299,33 @@ public abstract class BloomFilterValuesWriter extends IndexValuesWriter {
         indexByteSize += 8;
       }
       numIndex.add(indexNum);
+      dataByteSize += 8;
       System.out.println("----------binaryArraySize" + longArray.size() + "binary len:8(long)"+ "----------");
     }
 
     @Override
     public BytesInput getBytes() {
-      PlainValuesWriter encoder = new PlainValuesWriter(indexByteSize,maxIndexByteSize, this.allocator);
-      encoders.add(encoder);
+      if (dataByteSize > 0) {
+        logger.info("--------che-------------indexBytesize" + dataByteSize + "maxIndexBYteSize" + maxIndexByteSize);
+        PlainValuesWriter encoder = new PlainValuesWriter(dataByteSize, maxIndexByteSize, this.allocator);
+        encoders.add(encoder);
 
-      Iterator<Integer> indexIterator = numIndex.iterator();
+        Iterator<Integer> indexIterator = numIndex.iterator();
 
-      try {
-        while(indexIterator.hasNext()) {
-          encoder.writeLong(longArray.get(indexIterator.next()));
+        try {
+          while (indexIterator.hasNext()) {
+            encoder.writeLong(longArray.get(indexIterator.next()));
+          }
+          BytesInput bytes = encoder.getBytes();
+
+          lastUsedIndexSize = longArray.size();
+          lastUsedIndexByteSize = indexByteSize;
+          return bytes;
+        } catch (Exception e) {
+          throw new ParquetEncodingException("could not encode the values", e);
         }
-        BytesInput bytes = encoder.getBytes();
-
-        lastUsedIndexSize = longArray.size();
-        lastUsedIndexByteSize = indexByteSize;
-        return bytes;
-      } catch (Exception e) {
-        throw new ParquetEncodingException("could not encode the values", e);
       }
+      return null;
     }
 
     @Override
@@ -343,28 +374,33 @@ public abstract class BloomFilterValuesWriter extends IndexValuesWriter {
         indexByteSize += 8;
       }
       numIndex.add(indexNum);
+      dataByteSize += 8;
       System.out.println("----------binaryArraySize" + doubleArray.size() + "binary len:8(double)"+ "----------");
     }
 
     @Override
     public BytesInput getBytes() {
-      PlainValuesWriter encoder = new PlainValuesWriter(indexByteSize,maxIndexByteSize, this.allocator);
-      encoders.add(encoder);
+      if (dataByteSize > 0) {
+        logger.info("--------che-------------indexBytesize" + dataByteSize + "maxIndexBYteSize" + maxIndexByteSize);
+        PlainValuesWriter encoder = new PlainValuesWriter(dataByteSize, maxIndexByteSize, this.allocator);
+        encoders.add(encoder);
 
-      Iterator<Integer> indexIterator = numIndex.iterator();
+        Iterator<Integer> indexIterator = numIndex.iterator();
 
-      try {
-        while(indexIterator.hasNext()) {
-          encoder.writeDouble(doubleArray.get(indexIterator.next()));
+        try {
+          while (indexIterator.hasNext()) {
+            encoder.writeDouble(doubleArray.get(indexIterator.next()));
+          }
+          BytesInput bytes = encoder.getBytes();
+
+          lastUsedIndexSize = doubleArray.size();
+          lastUsedIndexByteSize = indexByteSize;
+          return bytes;
+        } catch (Exception e) {
+          throw new ParquetEncodingException("could not encode the values", e);
         }
-        BytesInput bytes = encoder.getBytes();
-
-        lastUsedIndexSize = doubleArray.size();
-        lastUsedIndexByteSize = indexByteSize;
-        return bytes;
-      } catch (Exception e) {
-        throw new ParquetEncodingException("could not encode the values", e);
       }
+      return null;
     }
 
     @Override
@@ -413,28 +449,33 @@ public abstract class BloomFilterValuesWriter extends IndexValuesWriter {
           indexByteSize += 4;
         }
         numIndex.add(indexNum);
+        dataByteSize += 4;
       System.out.println("----------binaryArraySize" + intArray.size() + "binary len:4(int)"+ "----------");
       }
 
       @Override
       public BytesInput getBytes() {
-        PlainValuesWriter encoder = new PlainValuesWriter(indexByteSize,maxIndexByteSize, this.allocator);
-        encoders.add(encoder);
+        if (dataByteSize > 0) {
+          logger.info("--------che-------------indexBytesize" + dataByteSize + "maxIndexBYteSize" + maxIndexByteSize);
+          PlainValuesWriter encoder = new PlainValuesWriter(dataByteSize, maxIndexByteSize, this.allocator);
+          encoders.add(encoder);
 
-        Iterator<Integer> indexIterator = numIndex.iterator();
+          Iterator<Integer> indexIterator = numIndex.iterator();
 
-        try {
-          while(indexIterator.hasNext()) {
-            encoder.writeLong(intArray.get(indexIterator.next()));
+          try {
+            while (indexIterator.hasNext()) {
+              encoder.writeInteger(intArray.get(indexIterator.next()));
+            }
+            BytesInput bytes = encoder.getBytes();
+
+            lastUsedIndexSize = intArray.size();
+            lastUsedIndexByteSize = indexByteSize;
+            return bytes;
+          } catch (Exception e) {
+            throw new ParquetEncodingException("could not encode the values", e);
           }
-          BytesInput bytes = encoder.getBytes();
-
-          lastUsedIndexSize = intArray.size();
-          lastUsedIndexByteSize = indexByteSize;
-          return bytes;
-        } catch (Exception e) {
-          throw new ParquetEncodingException("could not encode the values", e);
         }
+        return null;
       }
 
       @Override
@@ -483,28 +524,33 @@ public abstract class BloomFilterValuesWriter extends IndexValuesWriter {
           indexByteSize += 4;
         }
         numIndex.add(indexNum);
+      dataByteSize += 4;
       System.out.println("----------binaryArraySize" + floatArray.size() + "binary len:4(float)"+ "----------");
       }
 
       @Override
       public BytesInput getBytes() {
-        PlainValuesWriter encoder = new PlainValuesWriter(indexByteSize,maxIndexByteSize, this.allocator);
-        encoders.add(encoder);
+        if (dataByteSize > 0) {
+          logger.info("--------che-------------indexBytesize" + dataByteSize + "maxIndexBYteSize" + maxIndexByteSize);
+          PlainValuesWriter encoder = new PlainValuesWriter(dataByteSize, maxIndexByteSize, this.allocator);
+          encoders.add(encoder);
 
-        Iterator<Integer> indexIterator = numIndex.iterator();
+          Iterator<Integer> indexIterator = numIndex.iterator();
 
-        try {
-          while(indexIterator.hasNext()) {
-            encoder.writeFloat(floatArray.get(indexIterator.next()));
+          try {
+            while (indexIterator.hasNext()) {
+              encoder.writeFloat(floatArray.get(indexIterator.next()));
+            }
+            BytesInput bytes = encoder.getBytes();
+
+            lastUsedIndexSize = floatArray.size();
+            lastUsedIndexByteSize = indexByteSize;
+            return bytes;
+          } catch (Exception e) {
+            throw new ParquetEncodingException("could not encode the values", e);
           }
-          BytesInput bytes = encoder.getBytes();
-
-          lastUsedIndexSize = floatArray.size();
-          lastUsedIndexByteSize = indexByteSize;
-          return bytes;
-        } catch (Exception e) {
-          throw new ParquetEncodingException("could not encode the values", e);
         }
+        return null;
       }
 
       @Override

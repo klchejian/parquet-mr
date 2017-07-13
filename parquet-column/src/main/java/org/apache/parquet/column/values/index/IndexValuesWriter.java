@@ -58,13 +58,15 @@ public abstract class IndexValuesWriter extends ValuesWriter {
    /* current size in bytes the index will take once serialized */
   protected int indexByteSize;
 
+  protected int dataByteSize;
+
   protected int lastUsedIndexByteSize;
 
   protected int lastUsedIndexSize;
 
 
   /* index encoded values */
-  protected Set<Binary> values = new HashSet<>();
+//  protected Set<Binary> values = new HashSet<>();
 //  protected List<Binary> encodedValues = new ArrayList<Binary>();
 
   /** indicates if this is the first page being processed */
@@ -73,7 +75,7 @@ public abstract class IndexValuesWriter extends ValuesWriter {
   protected ByteBufferAllocator allocator;
 
 
-  private List<RunLengthBitPackingHybridEncoder> encoders = new ArrayList<RunLengthBitPackingHybridEncoder>();
+//  private List<RunLengthBitPackingHybridEncoder> encoders = new ArrayList<RunLengthBitPackingHybridEncoder>();
 
   /**
    * @param maxIndexByteSize
@@ -140,20 +142,7 @@ public abstract class IndexValuesWriter extends ValuesWriter {
     return encodingForDataPage;
   }
 
-  @Override
-  public void reset() {
-    close();
-    values = new HashSet<>();
-  }
 
-  @Override
-  public void close() {
-    values = null;
-    for (RunLengthBitPackingHybridEncoder encoder : encoders) {
-      encoder.close();
-    }
-    encoders.clear();
-  }
 
 //
 //  public static class TestIntegerIndexValuesWriter extends IndexValuesWriter {
