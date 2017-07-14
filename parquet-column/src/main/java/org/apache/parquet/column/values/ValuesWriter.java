@@ -85,6 +85,13 @@ public abstract class ValuesWriter {
   }
 
   /**
+   * reset the index when a new block starts
+   */
+  public void resetIndex(){
+
+  }
+
+  /**
    * @param value the value to encode
    */
   public void writeByte(int value) {

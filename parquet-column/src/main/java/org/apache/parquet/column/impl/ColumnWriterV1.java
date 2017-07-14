@@ -98,7 +98,13 @@ final class ColumnWriterV1 implements ColumnWriter {
       long memSize = repetitionLevelColumn.getBufferedSize()
           + definitionLevelColumn.getBufferedSize()
           + dataColumn.getBufferedSize();
-      if (memSize > props.getPageSizeThreshold()) {
+      long recordSize = memSize/valueCount;
+      System.out.println("------accountForValueWritten------valueCount: "  + valueCount +
+        "----valueCountForNextSizeCheck: " + valueCountForNextSizeCheck +
+        "----props.getPageSizeThreshold(): " + props.getPageSizeThreshold() +
+        "----dataColumn.getBufferedSize(): " + dataColumn.getBufferedSize() +
+        "---memSize: " + memSize);
+      if (memSize > (props.getPageSizeThreshold() - 10*recordSize)) {
         // we will write the current page and check again the size at the predicted middle of next page
         if (props.estimateNextSizeCheck()) {
           valueCountForNextSizeCheck = valueCount / 2;
@@ -155,6 +161,8 @@ final class ColumnWriterV1 implements ColumnWriter {
           dataColumn.getEncoding());
     } catch (IOException e) {
       throw new ParquetEncodingException("could not write page for " + path, e);
+    } catch (NullPointerException e) {
+      throw new ParquetEncodingException("nullPoint exception " + e);
     }
     repetitionLevelColumn.reset();
     definitionLevelColumn.reset();
@@ -253,6 +261,7 @@ final class ColumnWriterV1 implements ColumnWriter {
         throw new ParquetEncodingException("could not write dictionary page for " + path, e);
       }
       dataColumn.resetDictionary();
+      dataColumn.resetIndex();
     }
   }
 
