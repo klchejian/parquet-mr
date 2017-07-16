@@ -53,6 +53,7 @@ final class ColumnWriterV1 implements ColumnWriter {
   private ValuesWriter repetitionLevelColumn;
   private ValuesWriter definitionLevelColumn;
   private ValuesWriter dataColumn;
+//  private ValuesWriter indexWriter;
   private int valueCount;
   private int valueCountForNextSizeCheck;
 
@@ -72,6 +73,10 @@ final class ColumnWriterV1 implements ColumnWriter {
     this.repetitionLevelColumn = props.newRepetitionLevelWriter(path);
     this.definitionLevelColumn = props.newDefinitionLevelWriter(path);
     this.dataColumn = props.newValuesWriter(path);
+//    if(props.isEnableIndex()){
+//      props.newValuesWriter(path);
+//    }
+
   }
 
   private void log(Object value, int r, int d) {
@@ -99,11 +104,11 @@ final class ColumnWriterV1 implements ColumnWriter {
           + definitionLevelColumn.getBufferedSize()
           + dataColumn.getBufferedSize();
       long recordSize = memSize/valueCount;
-      System.out.println("------accountForValueWritten------valueCount: "  + valueCount +
-        "----valueCountForNextSizeCheck: " + valueCountForNextSizeCheck +
-        "----props.getPageSizeThreshold(): " + props.getPageSizeThreshold() +
-        "----dataColumn.getBufferedSize(): " + dataColumn.getBufferedSize() +
-        "---memSize: " + memSize);
+//      System.out.println("------accountForValueWritten------valueCount: "  + valueCount +
+//        "----valueCountForNextSizeCheck: " + valueCountForNextSizeCheck +
+//        "----props.getPageSizeThreshold(): " + props.getPageSizeThreshold() +
+//        "----dataColumn.getBufferedSize(): " + dataColumn.getBufferedSize() +
+//        "---memSize: " + memSize);
       if (memSize > (props.getPageSizeThreshold() - 10*recordSize)) {
         // we will write the current page and check again the size at the predicted middle of next page
         if (props.estimateNextSizeCheck()) {
@@ -241,11 +246,19 @@ final class ColumnWriterV1 implements ColumnWriter {
   }
 
   public void flush() {
+    LOG.warn("--------che-------------ColumnWriterV1.flush----this.dataColumn.getClass():" + this.dataColumn.getClass()+"--valueCount="+valueCount+"");
     if (valueCount > 0) {
       writePage();
     }
     final DictionaryPage dictionaryPage = dataColumn.toDictPageAndClose();
     final IndexPage indexPage = dataColumn.toIndexPageAndClose();
+    if(dictionaryPage==null) {
+      LOG.warn("----------dictionaryPage is null----------");
+    }
+    if(indexPage==null) {
+      LOG.warn("----------indexPage is null----------");
+    }
+
     if (indexPage != null) {
       if (DEBUG) LOG.debug("write index");
       try {

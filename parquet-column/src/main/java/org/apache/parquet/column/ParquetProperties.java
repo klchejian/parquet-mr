@@ -30,6 +30,7 @@ import org.apache.parquet.column.page.PageWriteStore;
 import org.apache.parquet.column.values.ValuesWriter;
 import org.apache.parquet.column.values.bitpacking.DevNullValuesWriter;
 import org.apache.parquet.column.values.factory.DefaultValuesWriterFactory;
+import org.apache.parquet.column.values.index.IndexValuesWriter;
 import org.apache.parquet.column.values.rle.RunLengthBitPackingHybridEncoder;
 import org.apache.parquet.column.values.rle.RunLengthBitPackingHybridValuesWriter;
 import org.apache.parquet.column.values.factory.ValuesWriterFactory;
@@ -143,6 +144,10 @@ public class ParquetProperties {
   public ValuesWriter newValuesWriter(ColumnDescriptor path) {
     return valuesWriterFactory.newValuesWriter(path);
   }
+
+//  public IndexValuesWriter newIndexValuesWriter(ColumnDescriptor path) {
+//    return valuesWriterFactory.newIndexValuesWriter(path);
+//  }
 
   public int getPageSizeThreshold() {
     return pageSizeThreshold;
