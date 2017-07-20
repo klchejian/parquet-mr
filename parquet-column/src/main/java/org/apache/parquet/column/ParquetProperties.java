@@ -145,9 +145,9 @@ public class ParquetProperties {
     return valuesWriterFactory.newValuesWriter(path);
   }
 
-//  public IndexValuesWriter newIndexValuesWriter(ColumnDescriptor path) {
-//    return valuesWriterFactory.newIndexValuesWriter(path);
-//  }
+  public IndexValuesWriter newIndexValuesWriter(ColumnDescriptor path) {
+    return valuesWriterFactory.newIndexValuesWriter(path);
+  }
 
   public int getPageSizeThreshold() {
     return pageSizeThreshold;

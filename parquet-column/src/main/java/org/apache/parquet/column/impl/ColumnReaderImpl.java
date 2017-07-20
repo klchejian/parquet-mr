@@ -335,7 +335,7 @@ public class ColumnReaderImpl implements ColumnReader {
     DictionaryPage dictionaryPage = pageReader.readDictionaryPage();
     IndexPage indexPage = pageReader.readIndexPage();
     if(indexPage != null) {
-      this.dictionary = null;
+//      this.dictionary = null;
       try {
         this.index = indexPage.getEncoding().initIndex(path, indexPage);
 //        if (converter.hasIndexSupport()) {
@@ -344,8 +344,12 @@ public class ColumnReaderImpl implements ColumnReader {
       } catch (IOException e) {
         throw new ParquetDecodingException("could not decode the index for " + path, e);
       }
-    } else if (dictionaryPage != null) {
+    }else {
       this.index = null;
+    }
+
+    if (dictionaryPage != null) {
+//      this.index = null;
       try {
         this.dictionary = dictionaryPage.getEncoding().initDictionary(path, dictionaryPage);
         if (converter.hasDictionarySupport()) {
@@ -355,7 +359,6 @@ public class ColumnReaderImpl implements ColumnReader {
         throw new ParquetDecodingException("could not decode the dictionary for " + path, e);
       }
     } else {
-      this.index = null;
       this.dictionary = null;
     }
     this.totalValueCount = pageReader.getTotalValueCount();

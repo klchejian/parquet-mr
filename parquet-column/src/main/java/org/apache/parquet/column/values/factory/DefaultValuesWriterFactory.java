@@ -54,6 +54,12 @@ public class DefaultValuesWriterFactory implements ValuesWriterFactory {
     return delegateFactory.newValuesWriter(descriptor);
   }
 
+  @Override
+  public IndexValuesWriter newIndexValuesWriter(ColumnDescriptor descriptor) {
+    return delegateFactory.newIndexValuesWriter(descriptor);
+
+  }
+
   static DictionaryValuesWriter dictionaryWriter(ColumnDescriptor path, ParquetProperties properties, Encoding dictPageEncoding, Encoding dataPageEncoding) {
     switch (path.getType()) {
       case BOOLEAN:
@@ -110,14 +116,14 @@ public class DefaultValuesWriterFactory implements ValuesWriterFactory {
     }
   }
 
-  static ValuesWriter indexWriter(ColumnDescriptor path, ParquetProperties parquetProperties, Encoding dictPageEncoding, Encoding dataPageEncoding, ValuesWriter writerToFallBackTo) {
-    if (parquetProperties.isEnableIndex()) {
-      return indexWriter(path, parquetProperties, dictPageEncoding, dataPageEncoding);
-//      return FallbackValuesWriter.of(
-//        indexWriter(path, parquetProperties, dictPageEncoding, dataPageEncoding),
-//        writerToFallBackTo);
-    } else {
-      return writerToFallBackTo;
-    }
-  }
+//  static ValuesWriter indexWriter(ColumnDescriptor path, ParquetProperties parquetProperties, Encoding dictPageEncoding, Encoding dataPageEncoding, ValuesWriter writerToFallBackTo) {
+//    if (parquetProperties.isEnableIndex()) {
+//      return indexWriter(path, parquetProperties, dictPageEncoding, dataPageEncoding);
+////      return FallbackValuesWriter.of(
+////        indexWriter(path, parquetProperties, dictPageEncoding, dataPageEncoding),
+////        writerToFallBackTo);
+//    } else {
+//      return writerToFallBackTo;
+//    }
+//  }
 }

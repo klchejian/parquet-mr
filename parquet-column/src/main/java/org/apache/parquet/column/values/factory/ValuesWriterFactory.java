@@ -21,6 +21,7 @@ package org.apache.parquet.column.values.factory;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.ParquetProperties;
 import org.apache.parquet.column.values.ValuesWriter;
+import org.apache.parquet.column.values.index.IndexValuesWriter;
 
 /**
  * Can be overridden to allow users to manually test different strategies to create ValuesWriters.
@@ -44,4 +45,9 @@ public interface ValuesWriterFactory {
    * Creates a ValuesWriter to write values for the given column.
    */
   ValuesWriter newValuesWriter(ColumnDescriptor descriptor);
+
+  /**
+   * Create a IndexValuesWriter to generate index.
+   */
+  IndexValuesWriter newIndexValuesWriter(ColumnDescriptor descriptor);
 }

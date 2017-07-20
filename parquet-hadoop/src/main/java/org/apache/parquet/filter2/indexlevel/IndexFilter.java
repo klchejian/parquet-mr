@@ -425,33 +425,34 @@ public class IndexFilter implements FilterPredicate.Visitor<Boolean> {
 
   @SuppressWarnings("deprecation")
   private static boolean hasNonIndexPages(ColumnChunkMetaData meta) {
-    EncodingStats stats = meta.getEncodingStats();
-    if (stats != null) {
-      return stats.hasNonIndexEncodedPages();
-    }
-
-    // without EncodingStats, fall back to testing the encoding list
-    Set<Encoding> encodings = new HashSet<Encoding>(meta.getEncodings());
-    if (encodings.remove(Encoding.INDEX)) {
-      // if remove returned true, PLAIN_DICTIONARY was present, which means at
-      // least one page was dictionary encoded and 1.0 encodings are used
-
-      // RLE and BIT_PACKED are only used for repetition or definition levels
-      encodings.remove(Encoding.RLE);
-      encodings.remove(Encoding.BIT_PACKED);
-
-      if (encodings.isEmpty()) {
-        return false; // no encodings other than dictionary or rep/def levels
-      }
-
-      return true;
-
-    } else {
-      // if PLAIN_DICTIONARY wasn't present, then either the column is not
-      // dictionary-encoded, or the 2.0 encoding, RLE_DICTIONARY, was used.
-      // for 2.0, this cannot determine whether a page fell back without
-      // page encoding stats
-      return true;
-    }
+//    EncodingStats stats = meta.getEncodingStats();
+//    if (stats != null) {
+//      return stats.hasNonIndexEncodedPages();
+//    }
+//
+//    // without EncodingStats, fall back to testing the encoding list
+//    Set<Encoding> encodings = new HashSet<Encoding>(meta.getEncodings());
+//    if (encodings.remove(Encoding.INDEX)) {
+//      // if remove returned true, PLAIN_DICTIONARY was present, which means at
+//      // least one page was dictionary encoded and 1.0 encodings are used
+//
+//      // RLE and BIT_PACKED are only used for repetition or definition levels
+//      encodings.remove(Encoding.RLE);
+//      encodings.remove(Encoding.BIT_PACKED);
+//
+//      if (encodings.isEmpty()) {
+//        return false; // no encodings other than dictionary or rep/def levels
+//      }
+//
+//      return true;
+//
+//    } else {
+//      // if PLAIN_DICTIONARY wasn't present, then either the column is not
+//      // dictionary-encoded, or the 2.0 encoding, RLE_DICTIONARY, was used.
+//      // for 2.0, this cannot determine whether a page fell back without
+//      // page encoding stats
+//      return true;
+//    }
+    return false;
   }
 }

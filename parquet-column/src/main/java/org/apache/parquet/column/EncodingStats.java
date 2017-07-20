@@ -26,9 +26,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
-import static org.apache.parquet.column.Encoding.INDEX;
-import static org.apache.parquet.column.Encoding.PLAIN_DICTIONARY;
-import static org.apache.parquet.column.Encoding.RLE_DICTIONARY;
+import static org.apache.parquet.column.Encoding.*;
 
 /**
  * EncodingStats track dictionary and data page encodings for a single column within a row group.
@@ -94,7 +92,7 @@ public class EncodingStats {
 
   public boolean hasIndexEncodedPages() {
     Set<Encoding> encodings = dataStats.keySet();
-    return (encodings.contains(INDEX));
+    return (encodings.contains(PLAIN));
   }
 
   public boolean hasNonIndexEncodedPages() {

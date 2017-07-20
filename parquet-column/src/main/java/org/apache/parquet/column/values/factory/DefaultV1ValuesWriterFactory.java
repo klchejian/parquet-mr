@@ -23,6 +23,8 @@ import org.apache.parquet.column.Encoding;
 import org.apache.parquet.column.ParquetProperties;
 import org.apache.parquet.column.values.ValuesWriter;
 import org.apache.parquet.column.values.fallback.FallbackValuesWriter;
+import org.apache.parquet.column.values.index.BloomFilterValuesWriter;
+import org.apache.parquet.column.values.index.IndexValuesWriter;
 import org.apache.parquet.column.values.plain.BooleanPlainValuesWriter;
 import org.apache.parquet.column.values.plain.FixedLenByteArrayPlainValuesWriter;
 import org.apache.parquet.column.values.plain.PlainValuesWriter;
@@ -40,9 +42,9 @@ public class DefaultV1ValuesWriterFactory implements ValuesWriterFactory {
   }
 
   private Encoding getEncodingForDataPage() {
-    if(parquetProperties.isEnableIndex()) {
-      return INDEX;
-    }
+//    if(parquetProperties.isEnableIndex()) {
+//      return INDEX;
+//    }
     return PLAIN_DICTIONARY;
   }
 
@@ -52,6 +54,32 @@ public class DefaultV1ValuesWriterFactory implements ValuesWriterFactory {
 
   private Encoding getEncodingForIndexPage(){
     return INDEX;
+  }
+
+
+  @Override
+  public IndexValuesWriter newIndexValuesWriter(ColumnDescriptor descriptor) {
+    switch (descriptor.getType() ) {
+      case BOOLEAN:
+        return null;
+      case FIXED_LEN_BYTE_ARRAY:
+        return new BloomFilterValuesWriter.TestBinaryValuesWriter(parquetProperties.getIndexPageSizeThreshold(),getEncodingForIndexPage(),parquetProperties.getAllocator());
+      case BINARY:
+        return new BloomFilterValuesWriter.TestBinaryValuesWriter(parquetProperties.getIndexPageSizeThreshold(),getEncodingForIndexPage(),parquetProperties.getAllocator());
+      case INT32:
+        return new BloomFilterValuesWriter.TestIntegerValuesWriter(parquetProperties.getIndexPageSizeThreshold(),getEncodingForIndexPage(),parquetProperties.getAllocator());
+      case INT64:
+        return new BloomFilterValuesWriter.TestLongValuesWriter(parquetProperties.getIndexPageSizeThreshold(),getEncodingForIndexPage(),parquetProperties.getAllocator());
+      case INT96:
+//        return new BloomFilterValuesWriter.TestBinaryValuesWriter();
+        return null;
+      case DOUBLE:
+        return new BloomFilterValuesWriter.TestDoubleValuesWriter(parquetProperties.getIndexPageSizeThreshold(),getEncodingForIndexPage(),parquetProperties.getAllocator());
+      case FLOAT:
+        return new BloomFilterValuesWriter.TestFloatValuesWriter(parquetProperties.getIndexPageSizeThreshold(),getEncodingForIndexPage(),parquetProperties.getAllocator());
+      default:
+        throw new IllegalArgumentException("Unknown type " + descriptor.getType());
+    }
   }
 
   @Override
@@ -79,11 +107,11 @@ public class DefaultV1ValuesWriterFactory implements ValuesWriterFactory {
   }
 
   private ValuesWriter getValuesWriter(ColumnDescriptor path,ValuesWriter fallbackWriter){
-    if(parquetProperties.isEnableIndex()){
-      return DefaultValuesWriterFactory.indexWriter(path,parquetProperties,getEncodingForIndexPage(),getEncodingForDataPage(),fallbackWriter);
-    }else{
+//    if(parquetProperties.isEnableIndex()){
+//      return DefaultValuesWriterFactory.indexWriter(path,parquetProperties,getEncodingForIndexPage(),getEncodingForDataPage(),fallbackWriter);
+//    }else{
       return DefaultValuesWriterFactory.dictWriterWithFallBack(path, parquetProperties, getEncodingForDictionaryPage(), getEncodingForDataPage(), fallbackWriter);
-    }
+//    }
   }
 
   private ValuesWriter getBooleanValuesWriter() {
@@ -93,8 +121,9 @@ public class DefaultV1ValuesWriterFactory implements ValuesWriterFactory {
 
   private ValuesWriter getFixedLenByteArrayValuesWriter(ColumnDescriptor path) {
     // dictionary encoding was not enabled in PARQUET 1.0
-    ValuesWriter fallbackWriter = new FixedLenByteArrayPlainValuesWriter(path.getTypeLength(), parquetProperties.getInitialSlabSize(), parquetProperties.getPageSizeThreshold(), parquetProperties.getAllocator());
-    return DefaultValuesWriterFactory.indexWriter(path,parquetProperties,getEncodingForIndexPage(),getEncodingForDataPage(),fallbackWriter);
+    return new FixedLenByteArrayPlainValuesWriter(path.getTypeLength(), parquetProperties.getInitialSlabSize(), parquetProperties.getPageSizeThreshold(), parquetProperties.getAllocator());
+//     return DefaultValuesWriterFactory.indexWriter(path,parquetProperties,getEncodingForIndexPage(),getEncodingForDataPage(),fallbackWriter);
+
   }
 
   private ValuesWriter getBinaryValuesWriter(ColumnDescriptor path) {

@@ -25,6 +25,7 @@ import org.apache.parquet.column.values.ValuesWriter;
 import org.apache.parquet.column.values.delta.DeltaBinaryPackingValuesWriterForInteger;
 import org.apache.parquet.column.values.delta.DeltaBinaryPackingValuesWriterForLong;
 import org.apache.parquet.column.values.deltastrings.DeltaByteArrayWriter;
+import org.apache.parquet.column.values.index.IndexValuesWriter;
 import org.apache.parquet.column.values.plain.FixedLenByteArrayPlainValuesWriter;
 import org.apache.parquet.column.values.plain.PlainValuesWriter;
 import org.apache.parquet.column.values.rle.RunLengthBitPackingHybridValuesWriter;
@@ -47,6 +48,11 @@ public class DefaultV2ValuesWriterFactory implements ValuesWriterFactory {
 
   private Encoding getEncodingForDictionaryPage() {
     return PLAIN;
+  }
+
+  @Override
+  public IndexValuesWriter newIndexValuesWriter(ColumnDescriptor descriptor) {
+    return null;
   }
 
   @Override

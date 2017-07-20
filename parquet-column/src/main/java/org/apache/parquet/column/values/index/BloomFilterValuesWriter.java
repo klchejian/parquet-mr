@@ -132,103 +132,280 @@ public abstract class BloomFilterValuesWriter extends IndexValuesWriter {
     );
   }
 
-//  public static class TestIntegerIndexValuesWriter extends BloomFilterValuesWriter {
-//
-//    private IntList intContent = new IntList();
-//    private Set<Integer> indexSet = new HashSet<>();
-//    StringBuffer strbuf = new StringBuffer();
-//    private List<RunLengthBitPackingHybridEncoder> encoders = new ArrayList<RunLengthBitPackingHybridEncoder>();
-//
-//
-//
-//
-//    public TestIntegerIndexValuesWriter(int maxIndexByteSize, Encoding encodingForDataPage, Encoding encodingForIndexpage, ByteBufferAllocator allocator){
-//      super(maxIndexByteSize,encodingForDataPage,encodingForIndexpage,allocator);
-//    }
-//
-//    @Override
-//    public void writeInteger(int v) {
-//      if(!indexSet.contains(v)){
-//        indexSet.add(v);
-//        indexByteSize += 4;
-//      }
-//      intContent.add(v);
-//
-//    }
-//
-//
-//
-//    @Override
-//    public BytesInput getBytes() {
-//      int indexSize = indexSet.size()-1;
-//      int bitWidth = BytesUtils.getWidthFromMaxInt(indexSize);
-//      int initlalSlabSize = CapacityByteArrayOutputStream.initialSlabSizeHeuristic(MIN_INITIAL_SLAB_SIZE,maxIndexByteSize,10);
-//      RunLengthBitPackingHybridEncoder encoder = new RunLengthBitPackingHybridEncoder(bitWidth,initlalSlabSize,maxIndexByteSize,this.allocator);
-//      encoders.add(encoder);
-//
-//      IntIterator intIterator = intContent.iterator();
-//      try{
-//        while(intIterator.hasNext()){
-//          encoder.writeInt(intIterator.next());
-//        }
-//
-//        byte[] bytesHeader = new byte[] { (byte) bitWidth };
-//        BytesInput rleEncodeBytes = encoder.toBytes();
-//        BytesInput bytes = concat(BytesInput.from(bytesHeader),rleEncodeBytes);
-//
-//        lastUsedIndexSize = indexSet.size();
-//        lastUsedIndexByteSize = indexByteSize;
-//        return bytes;
-//      }catch(IOException e){
-//        throw new ParquetEncodingException("could not encode the values",e);
-//      }
-//    }
-//
-//    @Override
-//    public IndexPage toIndexPageAndClose() {
-//      if(lastUsedIndexSize>0){
-//        int pageSize=maxIndexByteSize;
-//        PlainValuesWriter indexEncoder = new PlainValuesWriter(lastUsedIndexByteSize,maxIndexByteSize,allocator);
-//        Iterator<Integer> intIterator = indexSet.iterator();
-//
-//        for(int i = 0 ; i < lastUsedIndexSize; i++){
-//          indexEncoder.writeInteger(intIterator.next());
-//        }
-//        return indexPage(indexEncoder, lastUsedIndexSize);
-//      }
-//      return null;
-//    }
-//
-//    @Override
-//    protected void clearIndexContent() {
-//
-//    }
-//
-//    @Override
-//    public long getBufferedSize() {
-////      strbuf.
-//      return indexByteSize;
-//    }
-//
-//    @Override
-//    public long getAllocatedSize() {
-//      return indexByteSize;
-//    }
-//
-//    @Override
-//    public String memUsageString(String prefix) {
-//      return String.format(
-//        "%s DictionaryValuesWriter{\n"
-//          + "%s\n"
-//          + "%s\n"
-//          + "%s}\n",
-//        prefix,
-//        prefix + " index:" + indexByteSize,
-//        prefix + " values:",
-//        prefix
-//      );
-//    }
-//  }
+  @Override
+  public BytesInput getBytes() {
+    return null;
+  }
+
+  public static class TestIndexValuesWriter extends BloomFilterValuesWriter {
+
+    private Set<Binary> indexSet = new HashSet<>();
+
+    public TestIndexValuesWriter() {
+      super(0,null,null,null);
+    }
+
+    @Override
+    public void writeBytes(Binary v) {
+      indexSet.add(v);
+    }
+
+    @Override
+    public IndexPage toIndexPageAndClose() {
+      int numBits = getNumBits(indexSet.size(), 0.05);
+      int numHashFunctions = getNumHashFun(0.05);
+      BloomFilter bloomFilter = new BloomFilter(numBits,numHashFunctions);
+      int bitsize = bloomFilter.getBitSet().length + 2;
+      PlainValuesWriter indexEncoder = new PlainValuesWriter(bitsize, bitsize*8, allocator);
+
+      indexEncoder.writeLong(numBits);
+      indexEncoder.writeLong(numHashFunctions);
+
+      Iterator<Binary> indexIterator = indexSet.iterator();
+
+      while (indexIterator.hasNext()) {
+        bloomFilter.addBinary(indexIterator.next());
+      }
+
+      long[] bitSet = bloomFilter.getBitSet();
+      for(int i = 0 ; i < bitSet.length; i++) {
+        indexEncoder.writeLong(bitSet[i]);
+      }
+      return indexPage(indexEncoder, bitsize);
+    }
+
+    @Override
+    protected void clearIndexContent() {
+      indexSet = null;
+      indexSet = new HashSet<>();
+    }
+
+  }
+
+  public static class TestBinaryValuesWriter extends BloomFilterValuesWriter {
+
+    private Set<Binary> indexSet = new HashSet<>();
+
+    public TestBinaryValuesWriter(int maxIndexBytesSize, Encoding encodingForIndexpage, ByteBufferAllocator allocator) {
+      super(maxIndexBytesSize,null,encodingForIndexpage,allocator);
+    }
+
+    @Override
+    public void writeBytes(Binary v) {
+      indexSet.add(v);
+    }
+
+    @Override
+    public IndexPage toIndexPageAndClose() {
+      int numBits = getNumBits(indexSet.size(), 0.05);
+      int numHashFunctions = getNumHashFun(0.05);
+      BloomFilter bloomFilter = new BloomFilter(numBits,numHashFunctions);
+      int bitsize = bloomFilter.getBitSet().length + 2;
+      PlainValuesWriter indexEncoder = new PlainValuesWriter(bitsize, bitsize*8, allocator);
+
+      indexEncoder.writeLong(numBits);
+      indexEncoder.writeLong(numHashFunctions);
+
+      Iterator<Binary> indexIterator = indexSet.iterator();
+
+      while (indexIterator.hasNext()) {
+        bloomFilter.addBinary(indexIterator.next());
+      }
+
+      long[] bitSet = bloomFilter.getBitSet();
+      for(int i = 0 ; i < bitSet.length; i++) {
+        indexEncoder.writeLong(bitSet[i]);
+      }
+      return indexPage(indexEncoder, bitsize);
+    }
+
+    @Override
+    protected void clearIndexContent() {
+      indexSet = null;
+      indexSet = new HashSet<>();
+    }
+
+  }
+
+  public static class TestLongValuesWriter extends BloomFilterValuesWriter {
+
+    private Set<Long> indexSet = new HashSet<>();
+
+    public TestLongValuesWriter(int maxIndexBytesSize, Encoding encodingForIndexpage, ByteBufferAllocator allocator) {
+      super(maxIndexBytesSize,null,encodingForIndexpage,allocator);
+    }
+
+    @Override
+    public void writeLong(long v) {
+      indexSet.add(v);
+    }
+
+    @Override
+    public IndexPage toIndexPageAndClose() {
+      int numBits = getNumBits(indexSet.size(), 0.05);
+      int numHashFunctions = getNumHashFun(0.05);
+      BloomFilter bloomFilter = new BloomFilter(numBits,numHashFunctions);
+      int bitsize = bloomFilter.getBitSet().length + 2;
+      PlainValuesWriter indexEncoder = new PlainValuesWriter(bitsize, bitsize*8, allocator);
+
+      indexEncoder.writeLong(numBits);
+      indexEncoder.writeLong(numHashFunctions);
+
+      Iterator<Long> indexIterator = indexSet.iterator();
+
+      while (indexIterator.hasNext()) {
+        bloomFilter.addLong(indexIterator.next());
+      }
+
+      long[] bitSet = bloomFilter.getBitSet();
+      for(int i = 0 ; i < bitSet.length; i++) {
+        indexEncoder.writeLong(bitSet[i]);
+      }
+      return indexPage(indexEncoder, bitsize);
+    }
+
+    @Override
+    protected void clearIndexContent() {
+      indexSet = null;
+      indexSet = new HashSet<>();
+    }
+
+  }
+
+  public static class TestDoubleValuesWriter extends BloomFilterValuesWriter {
+
+    private Set<Double> indexSet = new HashSet<>();
+
+    public TestDoubleValuesWriter(int maxIndexBytesSize, Encoding encodingForIndexpage, ByteBufferAllocator allocator) {
+      super(maxIndexBytesSize,null,encodingForIndexpage,allocator);
+    }
+
+    @Override
+    public void writeDouble(double v) {
+      indexSet.add(v);
+    }
+
+    @Override
+    public IndexPage toIndexPageAndClose() {
+      int numBits = getNumBits(indexSet.size(), 0.05);
+      int numHashFunctions = getNumHashFun(0.05);
+      BloomFilter bloomFilter = new BloomFilter(numBits,numHashFunctions);
+      int bitsize = bloomFilter.getBitSet().length + 2;
+      PlainValuesWriter indexEncoder = new PlainValuesWriter(bitsize, bitsize*8, allocator);
+
+      indexEncoder.writeLong(numBits);
+      indexEncoder.writeLong(numHashFunctions);
+
+      Iterator<Double> indexIterator = indexSet.iterator();
+
+      while (indexIterator.hasNext()) {
+        bloomFilter.addDouble(indexIterator.next());
+      }
+
+      long[] bitSet = bloomFilter.getBitSet();
+      for(int i = 0 ; i < bitSet.length; i++) {
+        indexEncoder.writeLong(bitSet[i]);
+      }
+      return indexPage(indexEncoder, bitsize);
+    }
+
+    @Override
+    protected void clearIndexContent() {
+      indexSet = null;
+      indexSet = new HashSet<>();
+    }
+
+  }
+
+  public static class TestIntegerValuesWriter extends BloomFilterValuesWriter {
+
+    private Set<Integer> indexSet = new HashSet<>();
+
+    public TestIntegerValuesWriter(int maxIndexBytesSize, Encoding encodingForIndexpage, ByteBufferAllocator allocator) {
+      super(maxIndexBytesSize,null,encodingForIndexpage,allocator);
+    }
+
+    @Override
+    public void writeInteger(int v) {
+      indexSet.add(v);
+    }
+
+    @Override
+    public IndexPage toIndexPageAndClose() {
+      int numBits = getNumBits(indexSet.size(), 0.05);
+      int numHashFunctions = getNumHashFun(0.05);
+      BloomFilter bloomFilter = new BloomFilter(numBits,numHashFunctions);
+      int bitsize = bloomFilter.getBitSet().length + 2;
+      PlainValuesWriter indexEncoder = new PlainValuesWriter(bitsize, bitsize*8, allocator);
+
+      indexEncoder.writeLong(numBits);
+      indexEncoder.writeLong(numHashFunctions);
+
+      Iterator<Integer> indexIterator = indexSet.iterator();
+
+      while (indexIterator.hasNext()) {
+        bloomFilter.addInteger(indexIterator.next());
+      }
+
+      long[] bitSet = bloomFilter.getBitSet();
+      for(int i = 0 ; i < bitSet.length; i++) {
+        indexEncoder.writeLong(bitSet[i]);
+      }
+      return indexPage(indexEncoder, bitsize);
+    }
+
+    @Override
+    protected void clearIndexContent() {
+      indexSet = null;
+      indexSet = new HashSet<>();
+    }
+
+  }
+
+  public static class TestFloatValuesWriter extends BloomFilterValuesWriter {
+
+    private Set<Float> indexSet = new HashSet<>();
+
+    public TestFloatValuesWriter(int maxIndexBytesSize, Encoding encodingForIndexpage, ByteBufferAllocator allocator) {
+      super(maxIndexBytesSize,null,encodingForIndexpage,allocator);
+    }
+
+    @Override
+    public void writeFloat(float v) {
+      indexSet.add(v);
+    }
+
+    @Override
+    public IndexPage toIndexPageAndClose() {
+      int numBits = getNumBits(indexSet.size(), 0.05);
+      int numHashFunctions = getNumHashFun(0.05);
+      BloomFilter bloomFilter = new BloomFilter(numBits,numHashFunctions);
+      int bitsize = bloomFilter.getBitSet().length + 2;
+      PlainValuesWriter indexEncoder = new PlainValuesWriter(bitsize, bitsize*8, allocator);
+
+      indexEncoder.writeLong(numBits);
+      indexEncoder.writeLong(numHashFunctions);
+
+      Iterator<Float> indexIterator = indexSet.iterator();
+
+      while (indexIterator.hasNext()) {
+        bloomFilter.addFloat(indexIterator.next());
+      }
+
+      long[] bitSet = bloomFilter.getBitSet();
+      for(int i = 0 ; i < bitSet.length; i++) {
+        indexEncoder.writeLong(bitSet[i]);
+      }
+      return indexPage(indexEncoder, bitsize);
+    }
+
+    @Override
+    protected void clearIndexContent() {
+      indexSet = null;
+      indexSet = new HashSet<>();
+    }
+
+  }
 
   public static class BloomFilterBinaryValuesWriter extends BloomFilterValuesWriter {
 //    private ArrayList<Binary> binaryArray = new ArrayList<>();

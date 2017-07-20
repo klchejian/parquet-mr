@@ -31,6 +31,7 @@ import org.apache.parquet.column.page.IndexPage;
 import org.apache.parquet.column.page.PageWriter;
 import org.apache.parquet.column.statistics.Statistics;
 import org.apache.parquet.column.values.ValuesWriter;
+import org.apache.parquet.column.values.index.IndexValuesWriter;
 import org.apache.parquet.io.ParquetEncodingException;
 import org.apache.parquet.io.api.Binary;
 
@@ -53,7 +54,7 @@ final class ColumnWriterV1 implements ColumnWriter {
   private ValuesWriter repetitionLevelColumn;
   private ValuesWriter definitionLevelColumn;
   private ValuesWriter dataColumn;
-//  private ValuesWriter indexWriter;
+  private IndexValuesWriter indexWriter;
   private int valueCount;
   private int valueCountForNextSizeCheck;
 
@@ -73,9 +74,9 @@ final class ColumnWriterV1 implements ColumnWriter {
     this.repetitionLevelColumn = props.newRepetitionLevelWriter(path);
     this.definitionLevelColumn = props.newDefinitionLevelWriter(path);
     this.dataColumn = props.newValuesWriter(path);
-//    if(props.isEnableIndex()){
-//      props.newValuesWriter(path);
-//    }
+    if(props.isEnableIndex()){
+      indexWriter = props.newIndexValuesWriter(path);
+    }
 
   }
 
@@ -154,6 +155,8 @@ final class ColumnWriterV1 implements ColumnWriter {
    statistics.updateStats(value);
   }
 
+
+
   private void writePage() {
     if (DEBUG) LOG.debug("write page");
     try {
@@ -192,6 +195,9 @@ final class ColumnWriterV1 implements ColumnWriter {
     definitionLevelColumn.writeInteger(definitionLevel);
     dataColumn.writeDouble(value);
     updateStatistics(value);
+    if(indexWriter != null) {
+      indexWriter.writeDouble(value);
+    }
     accountForValueWritten();
   }
 
@@ -202,6 +208,9 @@ final class ColumnWriterV1 implements ColumnWriter {
     definitionLevelColumn.writeInteger(definitionLevel);
     dataColumn.writeFloat(value);
     updateStatistics(value);
+    if(indexWriter != null) {
+      indexWriter.writeFloat(value);
+    }
     accountForValueWritten();
   }
 
@@ -212,6 +221,9 @@ final class ColumnWriterV1 implements ColumnWriter {
     definitionLevelColumn.writeInteger(definitionLevel);
     dataColumn.writeBytes(value);
     updateStatistics(value);
+    if(indexWriter != null) {
+      indexWriter.writeBytes(value);
+    }
     accountForValueWritten();
   }
 
@@ -222,6 +234,9 @@ final class ColumnWriterV1 implements ColumnWriter {
     definitionLevelColumn.writeInteger(definitionLevel);
     dataColumn.writeBoolean(value);
     updateStatistics(value);
+    if(indexWriter != null) {
+      indexWriter.writeBoolean(value);
+    }
     accountForValueWritten();
   }
 
@@ -232,6 +247,9 @@ final class ColumnWriterV1 implements ColumnWriter {
     definitionLevelColumn.writeInteger(definitionLevel);
     dataColumn.writeInteger(value);
     updateStatistics(value);
+    if(indexWriter != null) {
+      indexWriter.writeInteger(value);
+    }
     accountForValueWritten();
   }
 
@@ -242,6 +260,9 @@ final class ColumnWriterV1 implements ColumnWriter {
     definitionLevelColumn.writeInteger(definitionLevel);
     dataColumn.writeLong(value);
     updateStatistics(value);
+    if(indexWriter != null) {
+      indexWriter.writeLong(value);
+    }
     accountForValueWritten();
   }
 
@@ -251,7 +272,10 @@ final class ColumnWriterV1 implements ColumnWriter {
       writePage();
     }
     final DictionaryPage dictionaryPage = dataColumn.toDictPageAndClose();
-    final IndexPage indexPage = dataColumn.toIndexPageAndClose();
+    IndexPage indexPage = null;
+    if(indexWriter != null) {
+      indexPage = indexWriter.toIndexPageAndClose();
+    }
     if(dictionaryPage==null) {
       LOG.warn("----------dictionaryPage is null----------");
     }
@@ -275,6 +299,9 @@ final class ColumnWriterV1 implements ColumnWriter {
       }
       dataColumn.resetDictionary();
       dataColumn.resetIndex();
+      if(indexWriter != null) {
+        indexWriter.resetIndex();
+      }
     }
   }
 
