@@ -290,7 +290,11 @@ final class ColumnWriterV1 implements ColumnWriter {
       } catch (IOException e) {
         throw new ParquetEncodingException("could not write index page for " + path, e);
       }
-    } else if (dictionaryPage != null) {
+      if(indexWriter != null) {
+        indexWriter.resetIndex();
+      }
+    }
+    if (dictionaryPage != null) {
       if (DEBUG) LOG.debug("write dictionary");
       try {
         pageWriter.writeDictionaryPage(dictionaryPage);
@@ -298,10 +302,7 @@ final class ColumnWriterV1 implements ColumnWriter {
         throw new ParquetEncodingException("could not write dictionary page for " + path, e);
       }
       dataColumn.resetDictionary();
-      dataColumn.resetIndex();
-      if(indexWriter != null) {
-        indexWriter.resetIndex();
-      }
+//      dataColumn.resetIndex();
     }
   }
 
